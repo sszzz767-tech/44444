@@ -1,90 +1,65 @@
-import { ImageResponse } from "@vercel/og";
-
-export const runtime = "edge";
-export const dynamic = 'force-dynamic';
-
-async function isImageAccessible(url) {
-  try {
-    const response = await fetch(url, { method: 'HEAD' });
-    return response.ok;
-  } catch (error) {
-    console.error("图片验证失败:", error);
-    return false;
-  }
-}
-
-// 辅助函数：智能格式化价格显示
-function formatPriceSmart(value) {
-  if (!value) return "0.00";
-  
-  // 如果是字符串，直接使用
-  if (typeof value === 'string') {
-    // 检查字符串中的小数位数
-    const decimalIndex = value.indexOf('.');
-    if (decimalIndex === -1) {
-      return value + ".00"; // 没有小数部分，添加两位小数
-    }
-    
-    const decimalPart = value.substring(decimalIndex + 1);
-    const decimalLength = decimalPart.length;
-    
-    if (decimalLength === 0) {
-      return value + "00"; // 只有小数点，添加两位小数
-    } else if (decimalLength === 1) {
-      return value + "0"; // 只有一位小数，补零
-    } else if (decimalLength > 5) {
-      // 超过5位小数，截断到5位
-      const num = parseFloat(value);
-      return isNaN(num) ? value : num.toFixed(5);
-    }
-    
-    return value; // 2-5位小数，直接返回
-  }
-  
-  // 如果是数字，转换为字符串处理
-  const strValue = value.toString();
-  const decimalIndex = strValue.indexOf('.');
-  
-  if (decimalIndex === -1) {
-    return strValue + ".00"; // 没有小数部分，添加两位小数
-  }
-  
-  const decimalPart = strValue.substring(decimalIndex + 1);
-  const decimalLength = decimalPart.length;
-  
-  if (decimalLength === 0) {
-    return strValue + "00"; // 只有小数点，添加两位小数
-  } else if (decimalLength === 1) {
-    return strValue + "0"; // 只有一位小数，补零
-  } else if (decimalLength > 5) {
-    return value.toFixed(5); // 超过5位小数，截断到5位
-  }
-  
-  return strValue; // 2-5位小数，直接返回
-}
-
 export async function GET(request) {
   try {
-    console.log("收到图片生成请求");
-    
+    // ==================== 添加调试信息开始 ====================
+    console.log("=== 图片生成详细调试 ===");
+    console.log("完整请求URL:", request.url);
     const { searchParams } = new URL(request.url);
+    console.log("所有查询参数:");
+    console.log("- status:", searchParams.get("status"));
+    console.log("- symbol:", searchParams.get("symbol"));
+    console.log("- direction:", searchParams.get("direction"));
+    console.log("- price参数:", searchParams.get("price"), "(原始值)");
+    console.log("- entry参数:", searchParams.get("entry"), "(原始值)");
+    console.log("- profit参数:", searchParams.get("profit"));
+    console.log("- time参数:", searchParams.get("time"));
+    console.log("- _t参数:", searchParams.get("_t"));
+    // ==================== 添加调试信息结束 ====================
+
+    console.log("收到图片生成请求");
     console.log("查询参数:", Object.fromEntries(searchParams.entries()));
 
-    // 获取查询参数
-    const status = searchParams.get("status") || "ENTRY";
-    const symbol = searchParams.get("symbol") || "ETHUSDT.P";
-    const direction = searchParams.get("direction") || "买";
-    const price = formatPriceSmart(searchParams.get("price") || "4320.00"); // 智能格式化价格
-    const entry = formatPriceSmart(searchParams.get("entry") || "4387.38"); // 智能格式化价格
-    const profit = searchParams.get("profit") || "115.18";
-    const time = searchParams.get("time") || new Date().toLocaleString('zh-CN');
+    // 在图片生成代码中，修改参数获取部分：
+
+// 获取查询参数 - 修复price参数处理
+const status = searchParams.get("status") || "ENTRY";
+const symbol = searchParams.get("symbol") || "ETHUSDT.P";
+const direction = searchParams.get("direction") || "买";
+
+// 修复：确保price参数正确处理
+const rawPrice = searchParams.get("price");
+const rawEntry = searchParams.get("entry");
+
+// 如果price为空，根据消息类型决定使用什么值
+let priceDisplay = "-";
+if (rawPrice) {
+  priceDisplay = formatPriceSmart(rawPrice);
+} else {
+  // 对于不同状态的消息，使用不同的默认值
+  if (status === "TP1" || status === "TP2") {
+    // 对于止盈消息，如果没有price，使用entry作为备选
+    priceDisplay = formatPriceSmart(rawEntry || "-");
+  } else if (status === "BREAKEVEN") {
+    // 对于保本消息，使用触发价格或entry
+    priceDisplay = formatPriceSmart(rawEntry || "-");
+  } else {
+    priceDisplay = "-";
+  }
+}
+
+const entry = formatPriceSmart(rawEntry || "4387.38");
+const profit = searchParams.get("profit") || "115.18";
+const time = searchParams.get("time") || new Date().toLocaleString('zh-CN');
+
+// ==================== 验证最终显示的值 ====================
+console.log("最终显示值:");
+console.log("- price显示:", priceDisplay);
+console.log("- entry显示:", entry);
 
     // 设置图片宽高
     const width = 600;
     const height = 350;
 
     // 根据方向设置颜色和文本
-    // 修复方向显示问题：多头显示"买"和绿色，空头显示"卖"和红色
     let directionText = "买";
     let directionColor = "#00ff88"; // 绿色
     

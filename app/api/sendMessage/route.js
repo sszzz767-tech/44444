@@ -23,7 +23,7 @@ const SEND_TO_KOOK = process.env.SEND_TO_KOOK === "true"; // 设置为 "true" �
 const SEND_TO_DISCORD = process.env.SEND_TO_DISCORD === "true"; // 设置为 "true" 启用Discord发送
 
 // 默认KOOK频道ID
-const DEFAULT_KOOK_CHANNEL_ID = process.env.DEFAULT_KOOK_CHANNEL_ID || "4515222207085331";
+const DEFAULT_KOOK_CHANNEL_ID = process.env.DEFAULT_KOOK_CHANNEL_ID || "3152587560978791";
 
 const lastEntryBySymbol = Object.create(null);
 

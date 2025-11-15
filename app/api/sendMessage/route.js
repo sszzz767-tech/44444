@@ -173,29 +173,54 @@ function extractPositionInfo(text) {
   };
 }
 
-// 修复的图片价格获取函数
+// 修复的图片价格获取函数 - 专门优化保本位置消息
 function getImagePrice(rawData, entryPrice) {
+  console.log("=== getImagePrice 详细调试 ===");
+  console.log("原始数据:", rawData);
+  
   // 首先尝试获取最新价格
   const latestPrice = getLatestPrice(rawData);
+  console.log("- 最新价格:", latestPrice);
   
   // 根据消息类型获取触发价格
   let triggerPrice = null;
   if (isTP1(rawData)) {
     triggerPrice = getNum(rawData, "TP1价格") || getNum(rawData, "TP1") || getNum(rawData, "平仓价格");
+    console.log("- TP1触发价格:", triggerPrice);
   } else if (isTP2(rawData)) {
     triggerPrice = getNum(rawData, "TP2价格") || getNum(rawData, "TP2") || getNum(rawData, "平仓价格");
+    console.log("- TP2触发价格:", triggerPrice);
   } else if (isBreakeven(rawData)) {
-    triggerPrice = getNum(rawData, "触发价格") || getNum(rawData, "保本位");
+    // 专门优化保本位置消息的价格获取
+    triggerPrice = getNum(rawData, "触发价格") || getNum(rawData, "保本位") || getNum(rawData, "移动止损到保本位");
+    console.log("- 保本触发价格:", triggerPrice);
+    
+    // 如果在保本位置消息中没有找到触发价格，尝试从文本中提取
+    if (!triggerPrice) {
+      console.log("- 尝试从保本消息文本中提取价格...");
+      // 尝试匹配类似 "触发价格: 3220.33155" 或 "保本位: 3220.33155" 的格式
+      const priceMatch = rawData.match(/(?:触发价格|保本位|移动止损到保本位)\s*[:：]\s*(\d+(?:\.\d+)?)/);
+      if (priceMatch) {
+        triggerPrice = parseFloat(priceMatch[1]);
+        console.log("- 从文本提取的触发价格:", triggerPrice);
+      }
+    }
   }
   
-  console.log("=== getImagePrice 调试 ===");
-  console.log("- 最新价格:", latestPrice);
-  console.log("- 触发价格:", triggerPrice);
   console.log("- 开仓价格:", entryPrice);
-  console.log("- 最终选择的价格:", latestPrice || triggerPrice || entryPrice);
   
-  // 优先使用最新价格，其次触发价格，最后开仓价格
-  return latestPrice || triggerPrice || entryPrice;
+  // 对于保本位置消息，优先使用触发价格，其次最新价格，最后开仓价格
+  let finalPrice;
+  if (isBreakeven(rawData)) {
+    finalPrice = triggerPrice || latestPrice || entryPrice;
+  } else {
+    finalPrice = latestPrice || triggerPrice || entryPrice;
+  }
+  
+  console.log("- 最终选择的价格:", finalPrice);
+  console.log("=== getImagePrice 调试结束 ===");
+  
+  return finalPrice;
 }
 
 function generateImageURL(params) {

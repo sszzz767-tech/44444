@@ -9,7 +9,7 @@ const SEND_TO_KOOK = process.env.SEND_TO_KOOK === "true";
 const SEND_TO_DISCORD = process.env.SEND_TO_DISCORD === "true";
 const DEFAULT_KOOK_CHANNEL_ID = process.env.DEFAULT_KOOK_CHANNEL_ID || "3152587560978791";
 
-// 不再需要记录上次开仓价格，但保留无害
+// 用于记录开仓价格（备而不用，但保留无害）
 const lastEntryBySymbol = Object.create(null);
 
 // ---------- 辅助函数：解析原始消息 ----------
@@ -55,7 +55,7 @@ function getMessageType(text) {
   return "OTHER";
 }
 
-// ---------- 格式化消息（完全按你的新模板）----------
+// ---------- 格式化消息（完全按你的新模板，无头部文字）----------
 function formatForDingTalk(raw) {
   let text = String(raw || "")
     .replace(/\\u[\dA-Fa-f]{4}/g, '')
@@ -64,25 +64,20 @@ function formatForDingTalk(raw) {
     .replace(/\s+/g, ' ')
     .trim();
 
-  // 固定模型名称
   const MODEL_NAME = "RS-3.2";
-
   const symbol = getSymbol(text) || "-";
   const direction = getDirection(text) || "多頭";
 
-  // 提取各种价格（开仓消息用到）
   const entryPrice = getNum(text, "开仓价格");
   const stopPrice = getNum(text, "止损价格");
   const breakevenPrice = getNum(text, "保本位");
   const tp1Price = getNum(text, "TP1");
   const tp2Price = getNum(text, "TP2");
-  const triggerPrice = getNum(text, "触发价格") || getNum(text, "平仓价格"); // 用于保本止损
+  const triggerPrice = getNum(text, "触发价格") || getNum(text, "平仓价格");
 
-  // ----- 根据消息类型构建正文 -----
   let body = "";
 
   if (isEntry(text)) {
-    // 记录开仓价格（备而不用）
     if (symbol && entryPrice != null) {
       lastEntryBySymbol[symbol] = { entry: entryPrice, t: Date.now() };
     }
@@ -155,13 +150,11 @@ function formatForDingTalk(raw) {
       `狀態：重置`;
   }
   else {
-    // 未知消息类型，简单清理换行后原样输出
     body = String(text).replace(/,\s*/g, "\n").replace(/\\n/g, "\n");
   }
 
-  // 头部固定为“無限社區-AI”
-  const header = "🤖 無限社區-AI 🤖\n\n";
-  return header + body;
+  // ⚠️ 关键修改：直接返回正文，不再添加任何头部文字
+  return body;
 }
 
 // ---------- Discord 发送（纯文本，无 embed、无图片）----------
@@ -173,7 +166,6 @@ async function sendToDiscord(messageData) {
 
   try {
     console.log("=== 开始发送到Discord（纯文本） ===");
-    // 直接使用格式化后的消息作为 content
     const discordPayload = {
       content: messageData
     };
@@ -198,7 +190,7 @@ async function sendToDiscord(messageData) {
   }
 }
 
-// ---------- KOOK 发送（保持不变，只发送消息内容）----------
+// ---------- KOOK 发送（保持不变）----------
 async function sendToKook(messageData, rawData, messageType) {
   if (!SEND_TO_KOOK) {
     console.log("KOOK发送未启用，跳过");
@@ -209,7 +201,7 @@ async function sendToKook(messageData, rawData, messageType) {
     console.log("=== 开始发送到腾讯云KOOK服务 ===");
     const kookPayload = {
       channelId: DEFAULT_KOOK_CHANNEL_ID,
-      formattedMessage: messageData,   // 直接使用新格式文本
+      formattedMessage: messageData,
       messageType: messageType,
       timestamp: Date.now(),
       symbol: getSymbol(rawData),
@@ -255,7 +247,6 @@ export async function POST(req) {
     let processedRaw = String(raw || "").replace(/\\u[\dA-Fa-f]{4}/g, '').replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
       .replace(/[^\x00-\x7F\u4e00-\u9fa5\s]/g, '').replace(/\s+/g, ' ').trim();
 
-    // 简单验证是否包含交易关键词
     const isValid = processedRaw && /(品种|方向|开仓|止损|TP1|TP2|保本|盈利|胜率|交易次数)/.test(processedRaw);
     if (!isValid) {
       console.log("收到无效或空白消息，跳过处理");
@@ -267,16 +258,14 @@ export async function POST(req) {
     console.log("消息类型:", messageType);
     console.log("格式化消息预览:\n", formattedMessage);
 
-    // ---------- 并行发送到各平台 ----------
     console.log("=== 开始并行发送消息 ===");
     const [dingtalkResult, kookResult, discordResult] = await Promise.allSettled([
       (async () => {
         console.log("开始发送到钉钉...");
         if (USE_RELAY_SERVICE) {
-          // 使用中继服务
           const relayPayload = {
             message: formattedMessage,
-            needImage: false,           // 完全不需要图片
+            needImage: false,
             imageParams: null,
             dingtalkWebhook: DINGTALK_WEBHOOK
           };
@@ -289,7 +278,6 @@ export async function POST(req) {
           if (!relayData.success) throw new Error(relayData.error || "中继服务返回错误");
           return { ok: true, relayData, method: "relay" };
         } else {
-          // 直接发送钉钉
           const markdown = {
             msgtype: "markdown",
             markdown: {
@@ -308,7 +296,7 @@ export async function POST(req) {
         }
       })(),
       sendToKook(formattedMessage, processedRaw, messageType),
-      sendToDiscord(formattedMessage)   // 只传纯文本，无图片
+      sendToDiscord(formattedMessage)
     ]);
 
     const results = {
@@ -318,7 +306,6 @@ export async function POST(req) {
     };
 
     console.log("=== 最终发送结果 ===", results);
-
     return NextResponse.json({ ok: true, results, method: USE_RELAY_SERVICE ? "relay" : "direct" });
   } catch (e) {
     console.error("处理请求时发生错误:", e);
@@ -326,7 +313,6 @@ export async function POST(req) {
   }
 }
 
-// 保持 GET 用于健康检查（可选）
 export const dynamic = 'force-dynamic';
 export async function GET() {
   return new Response(

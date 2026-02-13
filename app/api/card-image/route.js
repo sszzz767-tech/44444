@@ -117,7 +117,7 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '50px',
-                        top: '390px',
+                        top: '395px',
                         fontSize: '47px',
                         fontWeight: '1800',
                         color: '#ffffff',
@@ -129,7 +129,7 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '50px',
-                        top: '430px',
+                        top: '475px',
                         fontSize: '35px',
                         fontWeight: '1000',
                         color: displayDirection === '卖' ? '#cc3333' : '#00aa5e',

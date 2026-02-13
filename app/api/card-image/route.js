@@ -128,8 +128,8 @@ export async function GET(request) {
                     {/* 方向（买/卖）—— 置于底图“30x”左侧，形成“买 30x”视觉效果 */}
                     <div style={{
                         position: 'absolute',
-                        left: '50px',
-                        top: '475px',
+                        left: '53px',
+                        top: '470px',
                         fontSize: '35px',
                         fontWeight: '1000',
                         color: displayDirection === '卖' ? '#cc3333' : '#00aa5e',

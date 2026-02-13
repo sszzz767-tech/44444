@@ -1,5 +1,5 @@
 // /app/api/card-image/route.js
-// 最终版 —— 绿色 #8FBC8F，细体字重 300
+// 最终版 —— 绿色 #00FA9A，细体强化
 import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'edge';
@@ -76,7 +76,7 @@ export async function GET(request) {
             ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
             : '+0.00';
 
-        // 加载 Geist-Black 字体（用于粗体元素）
+        // 加载 Geist-Black 字体
         const origin = new URL(request.url).origin;
         const fontUrl = `${origin}/fonts/Geist-Black.ttf`;
         const fontResponse = await fetch(fontUrl);
@@ -95,14 +95,14 @@ export async function GET(request) {
                         position: 'relative',
                     }}
                 >
-                    {/* 右上角：时间（细体 300） */}
+                    {/* 右上角：时间（超细） */}
                     <div style={{
                         position: 'absolute',
                         right: '445px',
                         top: '145px',
                         fontSize: '33px',
-                        fontWeight: 300,
-                        fontFamily: 'Arial, "Helvetica Neue", sans-serif',
+                        fontWeight: 200,
+                        fontFamily: '"Helvetica Neue Light", "Arial Narrow", "Arial", sans-serif',
                         color: '#F0F0F0',
                         letterSpacing: '0.5px',
                     }}>
@@ -122,7 +122,7 @@ export async function GET(request) {
                         {displaySymbol}
                     </div>
 
-                    {/* 方向（极粗 Geist，绿色 #8FBC8F） */}
+                    {/* 方向（极粗 Geist，绿色 #00FA9A） */}
                     <div style={{
                         position: 'absolute',
                         left: '53px',
@@ -130,12 +130,12 @@ export async function GET(request) {
                         fontSize: '35px',
                         fontWeight: 900,
                         fontFamily: 'Geist',
-                        color: displayDirection === '卖' ? '#cc3333' : '#8FBC8F',
+                        color: displayDirection === '卖' ? '#cc3333' : '#00FA9A',
                     }}>
                         {displayDirection}
                     </div>
 
-                    {/* 盈利金额（极粗 Geist，绿色 #8FBC8F） */}
+                    {/* 盈利金额（极粗 Geist，绿色 #00FA9A） */}
                     <div style={{
                         position: 'absolute',
                         left: '55px',
@@ -143,7 +143,7 @@ export async function GET(request) {
                         fontSize: '90px',
                         fontWeight: 900,
                         fontFamily: 'Geist',
-                        color: profitAmount >= 0 ? '#8FBC8F' : '#cc3333',
+                        color: profitAmount >= 0 ? '#00FA9A' : '#cc3333',
                         display: 'flex',
                         alignItems: 'baseline',
                         gap: '8px',
@@ -151,27 +151,27 @@ export async function GET(request) {
                         <span>{displayProfit}</span>
                     </div>
 
-                    {/* 开仓价格（细体 300） */}
+                    {/* 开仓价格（超细） */}
                     <div style={{
                         position: 'absolute',
                         left: '60px',
                         bottom: '430px',
                         fontSize: '35px',
-                        fontWeight: 300,
-                        fontFamily: 'Arial, "Helvetica Neue", sans-serif',
+                        fontWeight: 200,
+                        fontFamily: '"Helvetica Neue Light", "Arial Narrow", "Arial", sans-serif',
                         color: '#F0F0F0',
                     }}>
                         {displayEntry}
                     </div>
 
-                    {/* 最新价格（细体 300） */}
+                    {/* 最新价格（超细） */}
                     <div style={{
                         position: 'absolute',
                         left: '505px',
                         bottom: '430px',
                         fontSize: '35px',
-                        fontWeight: 300,
-                        fontFamily: 'Arial, "Helvetica Neue", sans-serif',
+                        fontWeight: 200,
+                        fontFamily: '"Helvetica Neue Light", "Arial Narrow", "Arial", sans-serif',
                         color: '#F0F0F0',
                     }}>
                         {displayPrice}

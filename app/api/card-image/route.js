@@ -1,5 +1,5 @@
 // /app/api/card-image/route.js
-// 独立图片生成路由 —— 专用于你的新底图，不包含任何消息发送逻辑
+// 独立图片生成路由 —— 专用于你的新底图，无本地字体依赖
 import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'edge';
@@ -32,15 +32,14 @@ function calculateProfit(entry, current, direction, capital = 1000, leverage = 3
     if (direction === '买' || direction === '多头' || direction === '多頭') {
         priceDiff = currentNum - entryNum;
     } else {
-        priceDiff = entryNum - currentNum; // 空头：开仓价 - 当前价
+        priceDiff = entryNum - currentNum;
     }
 
     const profitAmount = capital * leverage * (priceDiff / entryNum);
-    // 保留两位小数，正负号由 toFixed 自动处理
     return profitAmount;
 }
 
-// ---------- 北京时间格式化（用于图片右上角）----------
+// ---------- 北京时间格式化----------
 function getBeijingTime() {
     const now = new Date();
     const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
@@ -64,9 +63,9 @@ export async function GET(request) {
         const direction = searchParams.get('direction') || '买';
         const entry = searchParams.get('entry');
         const price = searchParams.get('price');
-        const timeParam = searchParams.get('time'); // 可选，不传则自动生成北京时间
+        const timeParam = searchParams.get('time');
         const capital = parseFloat(searchParams.get('capital') || process.env.DEFAULT_CAPITAL || '1000');
-        const leverage = 30; // 底图已固定 30x，代码中仅用于计算
+        const leverage = 30; // 底图已固定30x，计算用
 
         // 3. 格式化显示值
         const displaySymbol = symbol.replace('.P', '').replace('.p', '') + ' 永续';
@@ -75,7 +74,7 @@ export async function GET(request) {
         const displayPrice = formatPriceSmart(price || entry || '-');
         const displayTime = timeParam || getBeijingTime();
 
-        // 4. 计算盈利金额（真实价差，无随机）
+        // 4. 计算盈利金额
         let profitAmount = null;
         if (entry && price) {
             profitAmount = calculateProfit(entry, price, direction, capital, leverage);
@@ -84,10 +83,7 @@ export async function GET(request) {
             ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
             : '+0.00';
 
-        // 5. 定义字体（使用 Geist 或系统默认）
-        const geistSemiBold = fetch(new URL('../../../public/fonts/Geist-SemiBold.ttf', import.meta.url)).then(res => res.arrayBuffer());
-
-        // 6. 生成图片
+        // 5. 生成图片 - 不加载任何自定义字体，完全依赖系统回退字体
         return new ImageResponse(
             (
                 <div
@@ -99,11 +95,10 @@ export async function GET(request) {
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         position: 'relative',
-                        fontFamily: '"Geist", "PingFang SC", "Helvetica Neue", Arial, sans-serif',
+                        // 直接使用系统字体，无需额外加载
+                        fontFamily: '"PingFang SC", "Helvetica Neue", "Microsoft YaHei", Arial, sans-serif',
                     }}
                 >
-                    {/* ----- 所有文字均通过绝对定位，精准覆盖底图空白区域 ----- */}
-                    
                     {/* 右上角：时间 */}
                     <div style={{
                         position: 'absolute',
@@ -116,7 +111,7 @@ export async function GET(request) {
                         {displayTime}
                     </div>
 
-                    {/* 左上角/中部上方：交易对 */}
+                    {/* 交易对 */}
                     <div style={{
                         position: 'absolute',
                         left: '45px',
@@ -128,19 +123,19 @@ export async function GET(request) {
                         {displaySymbol}
                     </div>
 
-                    {/* 方向（买/卖）- 与底图“30x”平行放置，通常在左侧或紧邻杠杆 */}
+                    {/* 方向（买/卖） */}
                     <div style={{
                         position: 'absolute',
-                        left: '45px',      // 根据底图视觉，调整到合适位置
-                        top: '125px',       // 位于交易对下方，与底图“30x”文字对齐
+                        left: '45px',
+                        top: '125px',
                         fontSize: '20px',
                         fontWeight: '600',
-                        color: direction === '卖' ? '#ff4757' : '#00ff88', // 卖红色，买绿色
+                        color: displayDirection === '卖' ? '#ff4757' : '#00ff88',
                     }}>
                         {displayDirection}
                     </div>
 
-                    {/* 中部：盈利金额（大字） */}
+                    {/* 盈利金额（大号） */}
                     <div style={{
                         position: 'absolute',
                         left: '45px',
@@ -153,22 +148,22 @@ export async function GET(request) {
                         gap: '8px',
                     }}>
                         <span>{displayProfit}</span>
-                        {/* 单位“USDT”已印在底图上，此处不重复添加文字 */}
+                        {/* 单位 USDT 已印在底图上，不重复添加 */}
                     </div>
 
-                    {/* 左下：开仓价格（覆盖底图“开仓价格”标签后的数值区域） */}
+                    {/* 开仓价格（左下） */}
                     <div style={{
                         position: 'absolute',
                         left: '45px',
                         bottom: '70px',
                         fontSize: '22px',
                         fontWeight: '600',
-                        color: '#b8b800', // 金色
+                        color: '#b8b800',
                     }}>
                         {displayEntry}
                     </div>
 
-                    {/* 右下：最新价格（覆盖底图“最新价格”标签后的数值区域） */}
+                    {/* 最新价格（右下） */}
                     <div style={{
                         position: 'absolute',
                         right: '45px',
@@ -179,25 +174,15 @@ export async function GET(request) {
                     }}>
                         {displayPrice}
                     </div>
-
-                    {/* 注：底图已包含“Infinity-crypto”、“30x”、“USDT”、“币安合约 邀请码ADAN888”等固定元素，代码不重复写入 */}
-
                 </div>
             ),
             {
                 width: 600,
                 height: 350,
-                fonts: [
-                    {
-                        name: 'Geist',
-                        data: await geistSemiBold,
-                        style: 'normal',
-                        weight: 600,
-                    },
-                ],
+                // 不再提供 fonts 数组，完全依赖 Edge 环境的系统字体
                 headers: {
                     'Content-Type': 'image/png',
-                    'Cache-Control': 'public, max-age=3600', // 缓存1小时
+                    'Cache-Control': 'public, max-age=3600',
                 },
             }
         );

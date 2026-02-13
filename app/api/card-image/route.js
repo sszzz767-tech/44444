@@ -1,5 +1,5 @@
 // /app/api/card-image/route.js
-// 修正版 —— 符合你最新的字体颜色/粗细/位置要求
+// 最终版 —— 严格按你坐标，交易对&金额真正加粗（使用系统粗体字体）
 import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'edge';
@@ -54,7 +54,7 @@ function getBeijingTime() {
 
 export async function GET(request) {
     try {
-        // 1. 固定背景图 URL（你指定的新底图）
+        // 1. 固定背景图 URL
         const BACKGROUND_IMAGE_URL = 'https://res.cloudinary.com/dtbc3aa1o/image/upload/v1770971863/%E6%96%B0%E5%BA%95%E5%9B%BE_eoyhgf.png';
 
         // 2. 获取查询参数
@@ -65,7 +65,7 @@ export async function GET(request) {
         const price = searchParams.get('price');
         const timeParam = searchParams.get('time');
         const capital = parseFloat(searchParams.get('capital') || process.env.DEFAULT_CAPITAL || '1000');
-        const leverage = 30; // 底图已固定30x，计算用
+        const leverage = 30;
 
         // 3. 格式化显示值
         const displaySymbol = symbol.replace('.P', '').replace('.p', '') + ' 永续';
@@ -83,7 +83,7 @@ export async function GET(request) {
             ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
             : '+0.00';
 
-        // 5. 生成图片
+        // 5. 生成图片 —— 使用系统粗体字体，真正加粗
         return new ImageResponse(
             (
                 <div
@@ -95,55 +95,54 @@ export async function GET(request) {
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         position: 'relative',
-                        fontFamily: '"PingFang SC", "Helvetica Neue", "Microsoft YaHei", Arial, sans-serif',
+                        // ⭐ 关键修改：直接调用系统粗体字体
+                        fontFamily: '"Arial Black", "Helvetica Bold", "PingFang SC Heavy", "Microsoft YaHei Bold", sans-serif',
                     }}
                 >
-                    {/* ----- 所有动态文字均为白色粗体，盈利和方向按规则着色 ----- */}
-
-                    {/* 右上角：时间（白色粗体） */}
+                    {/* 右上角：时间（保持你原来的粗度） */}
                     <div style={{
                         position: 'absolute',
                         right: '445px',
                         top: '145px',
                         fontSize: '33px',
-                        fontWeight: '800',
+                        fontWeight: '800',       // 不变
                         color: '#ffffff',
                         letterSpacing: '0.5px',
                     }}>
                         {displayTime}
                     </div>
 
-                    {/* 交易对（白色粗体） */}
+                    {/* 交易对 —— 真正加粗（normal 即可使用粗体字体本身的粗度） */}
                     <div style={{
                         position: 'absolute',
                         left: '50px',
                         top: '395px',
                         fontSize: '47px',
-                        fontWeight: '1800',
+                        fontWeight: 'normal',    // ⭐ 改为 normal
                         color: '#ffffff',
                     }}>
                         {displaySymbol}
                     </div>
 
-                    {/* 方向（买/卖）—— 置于底图“30x”左侧，形成“买 30x”视觉效果 */}
+                    {/* 方向（买/卖）—— 真正加粗 */}
                     <div style={{
                         position: 'absolute',
                         left: '53px',
                         top: '470px',
                         fontSize: '35px',
-                        fontWeight: '1000',
+                        fontWeight: 'normal',    // ⭐ 改为 normal
                         color: displayDirection === '卖' ? '#cc3333' : '#00aa5e',
                     }}>
                         {displayDirection}
                     </div>
 
-                    {/* 盈利金额（超级粗体，大号，着色） */}
+                    {/* 盈利金额 —— 真正加粗 */}
                     <div style={{
                         position: 'absolute',
                         left: '55px',
                         top: '585px',
                         fontSize: '90px',
-                        fontWeight: '1800',
+                        fontWeight: 'normal',    // ⭐ 改为 normal
                         color: profitAmount >= 0 ? '#00aa5e' : '#cc3333',
                         display: 'flex',
                         alignItems: 'baseline',
@@ -152,31 +151,29 @@ export async function GET(request) {
                         <span>{displayProfit}</span>
                     </div>
 
-                    {/* 开仓价格（白色粗体）- 左下，紧贴“开仓价格”标签右侧 */}
+                    {/* 开仓价格 —— 真正加粗 */}
                     <div style={{
                         position: 'absolute',
-                        left: '60px',      // 根据底图“开仓价格”标签位置微调
+                        left: '60px',
                         bottom: '430px',
                         fontSize: '35px',
-                        fontWeight: '1400',
+                        fontWeight: 'normal',    // ⭐ 改为 normal
                         color: '#ffffff',
                     }}>
                         {displayEntry}
                     </div>
 
-                    {/* 最新价格（白色粗体）- 右下，紧贴“最新价格”标签右侧 */}
+                    {/* 最新价格 —— 真正加粗 */}
                     <div style={{
                         position: 'absolute',
-                        left: '505px',     // 根据底图“最新价格”标签位置微调
+                        left: '505px',
                         bottom: '430px',
                         fontSize: '35px',
-                        fontWeight: '1400',
+                        fontWeight: 'normal',    // ⭐ 改为 normal
                         color: '#ffffff',
                     }}>
                         {displayPrice}
                     </div>
-
-                    {/* 底图自带：Infinity-crypto、30x、USDT、底部文案，代码不写入 */}
                 </div>
             ),
             {

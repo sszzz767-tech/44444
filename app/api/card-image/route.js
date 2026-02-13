@@ -105,7 +105,7 @@ export async function GET(request) {
                     {/* 右上角：时间（使用 Geist Regular，字重 400） */}
                     <div style={{
                         position: 'absolute',
-                        right: '400px',
+                        right: '420px',
                         top: '145px',
                         fontSize: '33px',
                         fontWeight: 400,
@@ -137,7 +137,7 @@ export async function GET(request) {
                         fontSize: '35px',
                         fontWeight: 900,
                         fontFamily: 'Geist',
-                        color: displayDirection === '卖' ? '#cc3333' : '#43C78A',
+                        color: displayDirection === '卖' ? '#cc3333' : '#35B97C',
                     }}>
                         {displayDirection}
                     </div>
@@ -150,7 +150,7 @@ export async function GET(request) {
                         fontSize: '90px',
                         fontWeight: 900,
                         fontFamily: 'Geist',
-                        color: profitAmount >= 0 ? '#43C78A' : '#cc3333',
+                        color: profitAmount >= 0 ? '#35B97C' : '#cc3333',
                         display: 'flex',
                         alignItems: 'baseline',
                         gap: '8px',

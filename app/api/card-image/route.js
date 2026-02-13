@@ -1,235 +1,211 @@
-export async function GET(request) {
-  try {
-    // ==================== 添加调试信息开始 ====================
-    console.log("=== 图片生成详细调试 ===");
-    console.log("完整请求URL:", request.url);
-    const { searchParams } = new URL(request.url);
-    console.log("所有查询参数:");
-    console.log("- status:", searchParams.get("status"));
-    console.log("- symbol:", searchParams.get("symbol"));
-    console.log("- direction:", searchParams.get("direction"));
-    console.log("- price参数:", searchParams.get("price"), "(原始值)");
-    console.log("- entry参数:", searchParams.get("entry"), "(原始值)");
-    console.log("- profit参数:", searchParams.get("profit"));
-    console.log("- time参数:", searchParams.get("time"));
-    console.log("- _t参数:", searchParams.get("_t"));
-    // ==================== 添加调试信息结束 ====================
+// /app/api/card-image/route.js
+// 独立图片生成路由 —— 专用于你的新底图，不包含任何消息发送逻辑
+import { ImageResponse } from '@vercel/og';
 
-    console.log("收到图片生成请求");
-    console.log("查询参数:", Object.fromEntries(searchParams.entries()));
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
 
-    // 在图片生成代码中，修改参数获取部分：
-
-// 获取查询参数 - 修复price参数处理
-const status = searchParams.get("status") || "ENTRY";
-const symbol = searchParams.get("symbol") || "ETHUSDT.P";
-const direction = searchParams.get("direction") || "买";
-
-// 修复：确保price参数正确处理
-const rawPrice = searchParams.get("price");
-const rawEntry = searchParams.get("entry");
-
-// 如果price为空，根据消息类型决定使用什么值
-let priceDisplay = "-";
-if (rawPrice) {
-  priceDisplay = formatPriceSmart(rawPrice);
-} else {
-  // 对于不同状态的消息，使用不同的默认值
-  if (status === "TP1" || status === "TP2") {
-    // 对于止盈消息，如果没有price，使用entry作为备选
-    priceDisplay = formatPriceSmart(rawEntry || "-");
-  } else if (status === "BREAKEVEN") {
-    // 对于保本消息，使用触发价格或entry
-    priceDisplay = formatPriceSmart(rawEntry || "-");
-  } else {
-    priceDisplay = "-";
-  }
+// ---------- 智能价格格式化（保留原始精度，最多5位）----------
+function formatPriceSmart(value) {
+    if (value === null || value === undefined) return '-';
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return trimmed || '-';
+    }
+    const strValue = value.toString();
+    const decimalIndex = strValue.indexOf('.');
+    if (decimalIndex === -1) return strValue;
+    const decimalPart = strValue.substring(decimalIndex + 1);
+    const decimalLength = decimalPart.length;
+    if (decimalLength > 5) return value.toFixed(5);
+    return strValue;
 }
 
-const entry = formatPriceSmart(rawEntry || "4387.38");
-const profit = searchParams.get("profit") || "115.18";
-const time = searchParams.get("time") || new Date().toLocaleString('zh-CN');
+// ---------- 盈利金额计算（真实价差，无随机）----------
+function calculateProfit(entry, current, direction, capital = 1000, leverage = 30) {
+    if (!entry || !current) return null;
+    const entryNum = parseFloat(entry);
+    const currentNum = parseFloat(current);
+    if (isNaN(entryNum) || isNaN(currentNum)) return null;
 
-// ==================== 验证最终显示的值 ====================
-console.log("最终显示值:");
-console.log("- price显示:", priceDisplay);
-console.log("- entry显示:", entry);
-
-    // 设置图片宽高
-    const width = 600;
-    const height = 350;
-
-    // 根据方向设置颜色和文本
-    let directionText = "买";
-    let directionColor = "#00ff88"; // 绿色
-    
-    if (direction === "空头" || direction === "卖") {
-      directionText = "卖";
-      directionColor = "#ff4757"; // 红色
+    let priceDiff;
+    if (direction === '买' || direction === '多头' || direction === '多頭') {
+        priceDiff = currentNum - entryNum;
+    } else {
+        priceDiff = entryNum - currentNum; // 空头：开仓价 - 当前价
     }
-    
-    const profitColor = "#00ff88";
 
-    // 使用 Cloudinary 图片链接
-    let backgroundImageUrl = "https://res.cloudinary.com/dtbc3aa1o/image/upload/v1770971863/%E6%96%B0%E5%BA%95%E5%9B%BE_eoyhgf.png";
-    console.log("使用背景图片:", backgroundImageUrl);
-    
-    // 验证图片是否可访问
-    let isAccessible = false;
+    const profitAmount = capital * leverage * (priceDiff / entryNum);
+    // 保留两位小数，正负号由 toFixed 自动处理
+    return profitAmount;
+}
+
+// ---------- 北京时间格式化（用于图片右上角）----------
+function getBeijingTime() {
+    const now = new Date();
+    const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const year = beijingTime.getUTCFullYear();
+    const month = String(beijingTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(beijingTime.getUTCDate()).padStart(2, '0');
+    const hours = String(beijingTime.getUTCHours()).padStart(2, '0');
+    const minutes = String(beijingTime.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(beijingTime.getUTCSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+export async function GET(request) {
     try {
-      isAccessible = await isImageAccessible(backgroundImageUrl);
-      console.log("图片可访问性:", isAccessible);
+        // 1. 固定背景图 URL（你指定的新底图）
+        const BACKGROUND_IMAGE_URL = 'https://res.cloudinary.com/dtbc3aa1o/image/upload/v1770971863/%E6%96%B0%E5%BA%95%E5%9B%BE_eoyhgf.png';
+
+        // 2. 获取查询参数
+        const { searchParams } = new URL(request.url);
+        const symbol = searchParams.get('symbol') || 'SOLUSDT.P';
+        const direction = searchParams.get('direction') || '买';
+        const entry = searchParams.get('entry');
+        const price = searchParams.get('price');
+        const timeParam = searchParams.get('time'); // 可选，不传则自动生成北京时间
+        const capital = parseFloat(searchParams.get('capital') || process.env.DEFAULT_CAPITAL || '1000');
+        const leverage = 30; // 底图已固定 30x，代码中仅用于计算
+
+        // 3. 格式化显示值
+        const displaySymbol = symbol.replace('.P', '').replace('.p', '') + ' 永续';
+        const displayDirection = (direction === '空头' || direction === '卖' || direction === '賣' || direction === '空') ? '卖' : '买';
+        const displayEntry = formatPriceSmart(entry || '-');
+        const displayPrice = formatPriceSmart(price || entry || '-');
+        const displayTime = timeParam || getBeijingTime();
+
+        // 4. 计算盈利金额（真实价差，无随机）
+        let profitAmount = null;
+        if (entry && price) {
+            profitAmount = calculateProfit(entry, price, direction, capital, leverage);
+        }
+        const displayProfit = profitAmount !== null && !isNaN(profitAmount) 
+            ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
+            : '+0.00';
+
+        // 5. 定义字体（使用 Geist 或系统默认）
+        const geistSemiBold = fetch(new URL('../../../public/fonts/Geist-SemiBold.ttf', import.meta.url)).then(res => res.arrayBuffer());
+
+        // 6. 生成图片
+        return new ImageResponse(
+            (
+                <div
+                    style={{
+                        display: 'flex',
+                        width: '600px',
+                        height: '350px',
+                        backgroundImage: `url(${BACKGROUND_IMAGE_URL})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        position: 'relative',
+                        fontFamily: '"Geist", "PingFang SC", "Helvetica Neue", Arial, sans-serif',
+                    }}
+                >
+                    {/* ----- 所有文字均通过绝对定位，精准覆盖底图空白区域 ----- */}
+                    
+                    {/* 右上角：时间 */}
+                    <div style={{
+                        position: 'absolute',
+                        right: '45px',
+                        top: '25px',
+                        fontSize: '16px',
+                        color: '#a0a0c0',
+                        letterSpacing: '0.5px',
+                    }}>
+                        {displayTime}
+                    </div>
+
+                    {/* 左上角/中部上方：交易对 */}
+                    <div style={{
+                        position: 'absolute',
+                        left: '45px',
+                        top: '85px',
+                        fontSize: '22px',
+                        fontWeight: '600',
+                        color: '#ffffff',
+                    }}>
+                        {displaySymbol}
+                    </div>
+
+                    {/* 方向（买/卖）- 与底图“30x”平行放置，通常在左侧或紧邻杠杆 */}
+                    <div style={{
+                        position: 'absolute',
+                        left: '45px',      // 根据底图视觉，调整到合适位置
+                        top: '125px',       // 位于交易对下方，与底图“30x”文字对齐
+                        fontSize: '20px',
+                        fontWeight: '600',
+                        color: direction === '卖' ? '#ff4757' : '#00ff88', // 卖红色，买绿色
+                    }}>
+                        {displayDirection}
+                    </div>
+
+                    {/* 中部：盈利金额（大字） */}
+                    <div style={{
+                        position: 'absolute',
+                        left: '45px',
+                        top: '170px',
+                        fontSize: '48px',
+                        fontWeight: '700',
+                        color: profitAmount >= 0 ? '#00ff88' : '#ff4757',
+                        display: 'flex',
+                        alignItems: 'baseline',
+                        gap: '8px',
+                    }}>
+                        <span>{displayProfit}</span>
+                        {/* 单位“USDT”已印在底图上，此处不重复添加文字 */}
+                    </div>
+
+                    {/* 左下：开仓价格（覆盖底图“开仓价格”标签后的数值区域） */}
+                    <div style={{
+                        position: 'absolute',
+                        left: '45px',
+                        bottom: '70px',
+                        fontSize: '22px',
+                        fontWeight: '600',
+                        color: '#b8b800', // 金色
+                    }}>
+                        {displayEntry}
+                    </div>
+
+                    {/* 右下：最新价格（覆盖底图“最新价格”标签后的数值区域） */}
+                    <div style={{
+                        position: 'absolute',
+                        right: '45px',
+                        bottom: '70px',
+                        fontSize: '22px',
+                        fontWeight: '600',
+                        color: '#b8b800',
+                    }}>
+                        {displayPrice}
+                    </div>
+
+                    {/* 注：底图已包含“Infinity-crypto”、“30x”、“USDT”、“币安合约 邀请码ADAN888”等固定元素，代码不重复写入 */}
+
+                </div>
+            ),
+            {
+                width: 600,
+                height: 350,
+                fonts: [
+                    {
+                        name: 'Geist',
+                        data: await geistSemiBold,
+                        style: 'normal',
+                        weight: 600,
+                    },
+                ],
+                headers: {
+                    'Content-Type': 'image/png',
+                    'Cache-Control': 'public, max-age=3600', // 缓存1小时
+                },
+            }
+        );
     } catch (error) {
-      console.error("图片验证出错:", error);
-      isAccessible = false;
+        console.error('图片生成失败:', error);
+        return new Response(
+            JSON.stringify({ error: '图片生成失败', message: error.message }),
+            { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
     }
-    
-    if (!isAccessible) {
-      console.error("Cloudinary 图片无法访问，使用备用方案");
-      backgroundImageUrl = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iZ3JhZGllbnQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojMGExZTE3O3N0b3Atb3BhY2l0eToxIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmFkaWVudCkiIC8+Cjwvc3ZnPg==";
-    }
-
-    console.log("开始生成图片响应");
-
-    // 返回图片响应
-    return new ImageResponse(
-      (
-        <div
-          style={{
-            display: "flex",
-            width: "100%",
-            height: "100%",
-            flexDirection: "column",
-            backgroundColor: "#0a0e17",
-            backgroundImage: `url(${backgroundImageUrl})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            fontFamily: '"PingFang SC", "Helvetica Neue", Arial, sans-serif',
-            padding: "15px",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          {/* 内容容器 - 明确设置 display: flex */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              width: "100%",
-              height: "100%",
-              position: "relative",
-            }}
-          >
-            {/* 交易对信息 */}
-            <div
-              style={{
-                position: "absolute",
-                left: "45px",
-                top: "85px",
-                fontSize: "22px",
-                fontWeight: "bold",
-                color: "#ffffff",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px"
-              }}
-            >
-              <span style={{ color: directionColor }}>
-                {directionText}
-              </span>
-              <span style={{ color: "#ffffff" }}>|</span>
-              <span style={{ color: "#ffffff" }}>75x</span>
-              <span style={{ color: "#ffffff" }}>|</span>
-              <span style={{ color: "#ffffff" }}>
-                {symbol.replace('.P', '')} 永续
-              </span>
-            </div>
-
-            {/* 盈利百分比 */}
-            <div
-              style={{
-                position: "absolute",
-                left: "45px",
-                top: "140px",
-                color: profitColor,
-                fontSize: "40px",
-                fontWeight: "bold",
-                display: "flex",
-              }}
-            >
-              {parseFloat(profit) >= 0 ? "+" : ""}{profit}%
-            </div>
-
-            {/* 价格数值 - 上下排列 */}
-            <div
-              style={{
-                position: "absolute",
-                left: "170px",
-                top: "220px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "8px",
-              }}
-            >
-              <div style={{ 
-                display: "flex",
-                color: "#b8b800", 
-                fontSize: "22px",
-                fontWeight: "bold",
-              }}>
-                {entry}
-              </div>
-              <div style={{ 
-                display: "flex",
-                color: "#b8b800", 
-                fontSize: "22px",
-                fontWeight: "bold",
-              }}>
-                {price}
-              </div>
-            </div>
-
-            {/* 底部信息 - 居中 */}
-            <div
-              style={{
-                position: "absolute",
-                left: "50%",
-                bottom: "10px",
-                transform: "translateX(-50%)",
-                color: "#a0a0c0",
-                fontSize: "16px",
-                display: "flex",
-              }}
-            >
-              无限区块AI
-            </div>
-          </div>
-        </div>
-      ),
-      {
-        width,
-        height,
-        headers: {
-          'Cache-Control': 'public, max-age=3600',
-        },
-      }
-    );
-  } catch (error) {
-    console.error("生成图片时出错:", error);
-    
-    return new Response(
-      JSON.stringify({
-        error: "生成图片失败",
-        message: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-      }),
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          'Cache-Control': 'no-cache',
-        },
-      }
-    );
-  }
 }

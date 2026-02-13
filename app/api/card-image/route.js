@@ -1,5 +1,5 @@
 // /app/api/card-image/route.js
-// 独立图片生成路由 —— 专用于你的新底图，无本地字体依赖
+// 修正版 —— 符合你最新的字体颜色/粗细/位置要求
 import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'edge';
@@ -83,103 +83,105 @@ export async function GET(request) {
             ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
             : '+0.00';
 
-        // 5. 生成图片 - 不加载任何自定义字体，完全依赖系统回退字体
+        // 5. 生成图片
         return new ImageResponse(
             (
                 <div
                     style={{
                         display: 'flex',
-                        width: '600px',
-                        height: '350px',
+                        width: '950px',
+                        height: '1300px',
                         backgroundImage: `url(${BACKGROUND_IMAGE_URL})`,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         position: 'relative',
-                        // 直接使用系统字体，无需额外加载
                         fontFamily: '"PingFang SC", "Helvetica Neue", "Microsoft YaHei", Arial, sans-serif',
                     }}
                 >
-                    {/* 右上角：时间 */}
+                    {/* ----- 所有动态文字均为白色粗体，盈利和方向按规则着色 ----- */}
+
+                    {/* 右上角：时间（白色粗体） */}
                     <div style={{
                         position: 'absolute',
                         right: '45px',
                         top: '25px',
                         fontSize: '16px',
-                        color: '#a0a0c0',
+                        fontWeight: '700',
+                        color: '#ffffff',
                         letterSpacing: '0.5px',
                     }}>
                         {displayTime}
                     </div>
 
-                    {/* 交易对 */}
+                    {/* 交易对（白色粗体） */}
                     <div style={{
                         position: 'absolute',
                         left: '45px',
                         top: '85px',
                         fontSize: '22px',
-                        fontWeight: '600',
+                        fontWeight: '700',
                         color: '#ffffff',
                     }}>
                         {displaySymbol}
                     </div>
 
-                    {/* 方向（买/卖） */}
+                    {/* 方向（买/卖）—— 置于底图“30x”左侧，形成“买 30x”视觉效果 */}
                     <div style={{
                         position: 'absolute',
                         left: '45px',
                         top: '125px',
                         fontSize: '20px',
-                        fontWeight: '600',
+                        fontWeight: '700',
                         color: displayDirection === '卖' ? '#ff4757' : '#00ff88',
                     }}>
                         {displayDirection}
                     </div>
 
-                    {/* 盈利金额（大号） */}
+                    {/* 盈利金额（超级粗体，大号，着色） */}
                     <div style={{
                         position: 'absolute',
                         left: '45px',
                         top: '170px',
-                        fontSize: '48px',
-                        fontWeight: '700',
+                        fontSize: '56px',
+                        fontWeight: '900',
                         color: profitAmount >= 0 ? '#00ff88' : '#ff4757',
                         display: 'flex',
                         alignItems: 'baseline',
                         gap: '8px',
                     }}>
                         <span>{displayProfit}</span>
-                        {/* 单位 USDT 已印在底图上，不重复添加 */}
                     </div>
 
-                    {/* 开仓价格（左下） */}
+                    {/* 开仓价格（白色粗体）- 左下，紧贴“开仓价格”标签右侧 */}
                     <div style={{
                         position: 'absolute',
-                        left: '45px',
+                        left: '140px',      // 根据底图“开仓价格”标签位置微调
                         bottom: '70px',
                         fontSize: '22px',
-                        fontWeight: '600',
-                        color: '#b8b800',
+                        fontWeight: '700',
+                        color: '#ffffff',
                     }}>
                         {displayEntry}
                     </div>
 
-                    {/* 最新价格（右下） */}
+                    {/* 最新价格（白色粗体）- 右下，紧贴“最新价格”标签右侧 */}
                     <div style={{
                         position: 'absolute',
-                        right: '45px',
+                        right: '140px',     // 根据底图“最新价格”标签位置微调
                         bottom: '70px',
                         fontSize: '22px',
-                        fontWeight: '600',
-                        color: '#b8b800',
+                        fontWeight: '700',
+                        color: '#ffffff',
                     }}>
                         {displayPrice}
                     </div>
+
+                    {/* 底图自带：Infinity-crypto、30x、USDT、底部文案，代码不写入 */}
                 </div>
             ),
             {
                 width: 600,
                 height: 350,
-                // 不再提供 fonts 数组，完全依赖 Edge 环境的系统字体
                 headers: {
                     'Content-Type': 'image/png',
                     'Cache-Control': 'public, max-age=3600',

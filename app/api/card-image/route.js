@@ -139,27 +139,27 @@ export async function GET(request) {
                         {displayDirection}
                     </div>
 
-                    {/* 盈利金额 + USDT（Geist Black 数字 + Geist Regular 单位） */}
+                    {/* 盈利金额 + USDT（Geist Black 数字 + Geist Black 单位） */}
                     <div style={{
-                        position: 'absolute',
-                        left: '40px',        // 保持你调整后的左移位置
-                        top: '585px',
-                        fontSize: '75px',     // 保持你调整后的字号
-                        fontWeight: 900,
-                        fontFamily: 'Geist',
-                        color: profitAmount >= 0 ? '#00FA9A' : '#cc3333',
-                        display: 'flex',
-                        alignItems: 'baseline',
-                        gap: '8px',
-                    }}>
+                       position: 'absolute',
+                       left: '40px',
+                       top: '585px',
+                       fontSize: '75px',
+                       fontWeight: 900,
+                       fontFamily: 'Geist',
+                       color: profitAmount >= 0 ? '#00FA9A' : '#cc3333',
+                       display: 'flex',
+                       alignItems: 'baseline',
+                       gap: '8px',
+                     }}>
                         <span>{displayProfit}</span>
-                        {/* ⭐ 动态添加 USDT，使用细体、稍小字号、浅色 */}
-                        <span style={{
-                            fontSize: '40px',
-                            fontWeight: 400,
-                            color: '#F0F0F0',
-                            marginLeft: '5px',
-                        }}>USDT</span>
+                   {/* USDT 加粗，使用 Geist Black 字重 900 */}
+                   <span style={{
+                       fontSize: '40px',
+                       fontWeight: 900,
+                       color: '#F0F0F0',
+                       marginLeft: '5px',
+                       }}>USDT</span>
                     </div>
 
                     {/* 开仓价格（Geist Regular，细体） */}

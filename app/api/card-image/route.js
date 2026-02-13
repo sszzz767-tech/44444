@@ -117,8 +117,8 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '50px',
-                        top: '395px',
-                        fontSize: '50px',
+                        top: '390px',
+                        fontSize: '47px',
                         fontWeight: '1800',
                         color: '#ffffff',
                     }}>
@@ -129,8 +129,8 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '50px',
-                        top: '465px',
-                        fontSize: '40px',
+                        top: '390px',
+                        fontSize: '47px',
                         fontWeight: '1000',
                         color: displayDirection === '卖' ? '#cc3333' : '#00aa5e',
                     }}>
@@ -155,8 +155,8 @@ export async function GET(request) {
                     {/* 开仓价格（白色粗体）- 左下，紧贴“开仓价格”标签右侧 */}
                     <div style={{
                         position: 'absolute',
-                        left: '55px',      // 根据底图“开仓价格”标签位置微调
-                        bottom: '450px',
+                        left: '60px',      // 根据底图“开仓价格”标签位置微调
+                        bottom: '430px',
                         fontSize: '35px',
                         fontWeight: '1400',
                         color: '#ffffff',
@@ -168,7 +168,7 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '505px',     // 根据底图“最新价格”标签位置微调
-                        bottom: '460px',
+                        bottom: '430px',
                         fontSize: '35px',
                         fontWeight: '1400',
                         color: '#ffffff',

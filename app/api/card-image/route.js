@@ -103,7 +103,7 @@ export async function GET(request) {
                     {/* 右上角：时间（白色粗体） */}
                     <div style={{
                         position: 'absolute',
-                        right: '460px',
+                        right: '430px',
                         top: '140px',
                         fontSize: '35px',
                         fontWeight: '800',
@@ -117,8 +117,8 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '50px',
-                        top: '360px',
-                        fontSize: '45px',
+                        top: '390px',
+                        fontSize: '50px',
                         fontWeight: '1800',
                         color: '#ffffff',
                     }}>
@@ -129,7 +129,7 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '50px',
-                        top: '360px',
+                        top: '430px',
                         fontSize: '45px',
                         fontWeight: '1000',
                         color: displayDirection === '卖' ? '#cc3333' : '#00aa5e',
@@ -155,8 +155,8 @@ export async function GET(request) {
                     {/* 开仓价格（白色粗体）- 左下，紧贴“开仓价格”标签右侧 */}
                     <div style={{
                         position: 'absolute',
-                        left: '45px',      // 根据底图“开仓价格”标签位置微调
-                        bottom: '500px',
+                        left: '50px',      // 根据底图“开仓价格”标签位置微调
+                        bottom: '450px',
                         fontSize: '35px',
                         fontWeight: '1400',
                         color: '#ffffff',
@@ -168,7 +168,7 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '500px',     // 根据底图“最新价格”标签位置微调
-                        bottom: '550px',
+                        bottom: '450px',
                         fontSize: '35px',
                         fontWeight: '1400',
                         color: '#ffffff',

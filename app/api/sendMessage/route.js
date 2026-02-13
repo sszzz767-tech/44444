@@ -1,5 +1,8 @@
+// /app/api/tradingview/route.js
+// 最终版 —— 消息推送集成代码，为保本/TP1/TP2 自动附加图片
 import { NextResponse } from "next/server";
 
+// ---------- 环境变量 ----------
 const DINGTALK_WEBHOOK = process.env.DINGTALK_WEBHOOK || "https://oapi.dingtalk.com/robot/send?access_token=你的token";
 const RELAY_SERVICE_URL = process.env.RELAY_SERVICE_URL || "https://send-todingtalk-pnvjfgztkw.cn-hangzhou.fcapp.run";
 const TENCENT_CLOUD_KOOK_URL = process.env.TENCENT_CLOUD_KOOK_URL || "https://你的腾讯云函数地址";
@@ -8,25 +11,11 @@ const USE_RELAY_SERVICE = process.env.USE_RELAY_SERVICE === "true";
 const SEND_TO_KOOK = process.env.SEND_TO_KOOK === "true";
 const SEND_TO_DISCORD = process.env.SEND_TO_DISCORD === "true";
 const DEFAULT_KOOK_CHANNEL_ID = process.env.DEFAULT_KOOK_CHANNEL_ID || "3152587560978791";
+const DEFAULT_CAPITAL = parseFloat(process.env.DEFAULT_CAPITAL || "1000"); // 默认本金 1000 USDT
+const IMAGE_BASE_URL = "https://aa44444.vercel.app"; // 图片服务的部署域名
 
-// 不再使用，保留空对象无害
+// 用于临时存储开仓价格（按交易对）
 const lastEntryBySymbol = Object.create(null);
-
-// ---------- 智能价格格式化（保留原始小数位数，最多5位）----------
-function formatPriceSmart(value) {
-  if (value === null || value === undefined) return "-";
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed || "-";
-  }
-  const strValue = value.toString();
-  const decimalIndex = strValue.indexOf('.');
-  if (decimalIndex === -1) return strValue;
-  const decimalPart = strValue.substring(decimalIndex + 1);
-  const decimalLength = decimalPart.length;
-  if (decimalLength > 5) return value.toFixed(5);
-  return strValue;
-}
 
 // ---------- 辅助解析函数 ----------
 function getNum(text, key) {
@@ -41,20 +30,18 @@ function getStr(text, key) {
   return m ? m[1].trim() : null;
 }
 
-function getPriceStr(text, key) {
-  const re = new RegExp(`${key}\\s*[:：]\\s*([0-9]+(?:\\.[0-9]+)?)`);
-  const m = String(text).match(re);
-  return m ? m[1].trim() : null;
-}
-
 function getSymbol(text) {
   const symbol = getStr(text, "品种");
   return symbol ? symbol.split(' ')[0].replace(/[^a-zA-Z0-9.]/g, '') : null;
 }
 
 function getDirection(text) {
-  const direction = getStr(text, "方向");
-  return direction ? direction.replace(/[^多头空头]/g, '') : null;
+  const dir = getStr(text, "方向");
+  if (!dir) return null;
+  // 转换为标准显示：买/卖
+  if (dir.includes("多") || dir.includes("buy") || dir.includes("Buy") || dir === "买") return "买";
+  if (dir.includes("空") || dir.includes("sell") || dir.includes("Sell") || dir === "卖") return "卖";
+  return null;
 }
 
 // ---------- 消息类型判断 ----------
@@ -77,75 +64,106 @@ function getMessageType(text) {
   return "OTHER";
 }
 
-// ---------- 格式化消息（完全按最新模板，无模型、无头部、无时间戳）----------
+// ---------- 格式化价格（保留原始精度，用于显示）----------
+function formatPriceSmart(value) {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed || "-";
+  }
+  const strValue = value.toString();
+  const decimalIndex = strValue.indexOf('.');
+  if (decimalIndex === -1) return strValue;
+  const decimalPart = strValue.substring(decimalIndex + 1);
+  const decimalLength = decimalPart.length;
+  if (decimalLength > 5) return value.toFixed(5);
+  return strValue;
+}
+
+// ---------- 构建图片 URL ----------
+function generateImageURL(params) {
+  const { symbol, direction, entry, price, capital = DEFAULT_CAPITAL } = params;
+  const url = new URL(`${IMAGE_BASE_URL}/api/card-image`);
+  url.searchParams.set('symbol', symbol || 'SOLUSDT.P');
+  url.searchParams.set('direction', direction === '卖' ? '卖' : '买'); // 确保是“买”或“卖”
+  url.searchParams.set('entry', formatPriceSmart(entry));
+  url.searchParams.set('price', formatPriceSmart(price));
+  url.searchParams.set('capital', capital.toString());
+  // 可选：添加时间戳避免缓存，但图片路由已设缓存控制，可不加
+  return url.toString();
+}
+
+// ---------- 格式化消息（精简版，完全符合新模板）----------
 function formatForDingTalk(raw) {
-  let text = String(raw || "")
-    .replace(/\\u[\dA-Fa-f]{4}/g, '')
-    .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
-    .replace(/[^\x00-\x7F\u4e00-\u9fa5\s]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const text = String(raw || "").replace(/\\u[\dA-Fa-f]{4}/g, '').replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
+    .replace(/[^\x00-\x7F\u4e00-\u9fa5\s]/g, '').replace(/\s+/g, ' ').trim();
 
-  const symbol = getSymbol(text) || "XRPUSDT.P";      // 默认值仅为示例，实际会从消息提取
-  const direction = getDirection(text) || "空頭";
+  const symbol = getSymbol(text) || "SYMBOL";
+  const direction = getDirection(text) || "买";
+  const symbolLine = `${symbol} ｜ ${direction === '卖' ? '空頭' : '多頭'}`; // 注意：文本中方向用“多頭/空頭”
 
-  // 合并标的与方向行
-  const symbolLine = `${symbol} ｜ ${direction}`;
+  // 提取各类价格
+  const entryPrice = getNum(text, "开仓价格");
+  const stopPrice = getNum(text, "止损价格");
+  const breakevenPrice = getNum(text, "保本位");
+  const tp1Price = getNum(text, "TP1");
+  const tp2Price = getNum(text, "TP2");
+  const triggerPrice = getNum(text, "触发价格") || getNum(text, "平仓价格");
 
-  // 提取价格（优先原始字符串）
-  const entryStr = getPriceStr(text, "开仓价格");
-  const stopStr = getPriceStr(text, "止损价格");
-  const breakevenStr = getPriceStr(text, "保本位");
-  const tp1Str = getPriceStr(text, "TP1");
-  const tp2Str = getPriceStr(text, "TP2");
-  const triggerStr = getPriceStr(text, "触发价格") || getPriceStr(text, "平仓价格");
-
-  const entryNum = getNum(text, "开仓价格");
-  const stopNum = getNum(text, "止损价格");
-  const breakevenNum = getNum(text, "保本位");
-  const tp1Num = getNum(text, "TP1");
-  const tp2Num = getNum(text, "TP2");
-  const triggerNum = getNum(text, "触发价格") || getNum(text, "平仓价格");
-
-  const fmt = (str, num) => {
-    if (str) return str;
-    if (num != null) return formatPriceSmart(num);
-    return "-";
-  };
+  // 如果是开仓，记录价格
+  if (isEntry(text) && symbol && entryPrice != null) {
+    lastEntryBySymbol[symbol] = { entry: entryPrice, t: Date.now() };
+  }
 
   let body = "";
 
-  // ---------- 1. 开仓（系统启动）----------
+  // ----- 1. 开仓 -----
   if (isEntry(text)) {
-    if (symbol && entryNum != null) {
-      lastEntryBySymbol[symbol] = { entry: entryNum, t: Date.now() };
-    }
-
-    body = 
+    body =
       `⚡ 系統啟動\n` +
       `${symbolLine}\n\n` +
-      `入場：${fmt(entryStr, entryNum)}\n` +
-      `風險：${fmt(stopStr, stopNum)}\n` +
-      `保護：${fmt(breakevenStr, breakevenNum)}\n\n` +
-      `階段一：${fmt(tp1Str, tp1Num)}\n` +
-      `階段二：${fmt(tp2Str, tp2Num)}\n\n` +
+      `入場：${formatPriceSmart(entryPrice)}\n` +
+      `風險：${formatPriceSmart(stopPrice)}\n` +
+      `保護：${formatPriceSmart(breakevenPrice)}\n\n` +
+      `階段一：${formatPriceSmart(tp1Price)}\n` +
+      `階段二：${formatPriceSmart(tp2Price)}\n\n` +
       `狀態：持倉`;
   }
-  
-  // ---------- 2. 保本位置触发（仓位更新）----------
+
+  // ----- 2. 保本触发 -----
   else if (isBreakeven(text)) {
-    body = 
+    body =
       `⚡ 倉位更新\n` +
       `${symbolLine}\n\n` +
       `保護位生效\n` +
       `風險轉移完成\n\n` +
-      `保護：${fmt(breakevenStr || triggerStr, breakevenNum ?? triggerNum)}\n\n` +
+      `保護：${formatPriceSmart(breakevenPrice || triggerPrice)}\n\n` +
       `狀態：已保護`;
   }
-  
-  // ---------- 3. 保本止损触发（仓位关闭）----------
+
+  // ----- 3. TP1 达成 -----
+  else if (isTP1(text)) {
+    body =
+      `⚡ 階段推進\n` +
+      `${symbolLine}\n\n` +
+      `階段一完成\n` +
+      `結構延伸中\n\n` +
+      `狀態：持續持倉`;
+  }
+
+  // ----- 4. TP2 达成 -----
+  else if (isTP2(text)) {
+    body =
+      `⚡ 階段完成\n` +
+      `${symbolLine}\n\n` +
+      `階段二完成\n` +
+      `本輪結構結束\n\n` +
+      `狀態：週期重置`;
+  }
+
+  // ----- 5. 保本止损触发 -----
   else if (isBreakevenStop(text)) {
-    body = 
+    body =
       `⚡ 倉位關閉\n` +
       `${symbolLine}\n\n` +
       `保護觸發\n` +
@@ -153,105 +171,69 @@ function formatForDingTalk(raw) {
       `風險已完全轉移\n\n` +
       `狀態：重置`;
   }
-  
-  // ---------- 4. TP1 达成（阶段推进）----------
-  else if (isTP1(text)) {
-    body = 
-      `⚡ 階段推進\n` +
-      `${symbolLine}\n\n` +
-      `階段一完成\n` +
-      `結構延伸中\n\n` +
-      `狀態：持續持倉`;
-  }
-  
-  // ---------- 5. TP2 达成（阶段完成）----------
-  else if (isTP2(text)) {
-    body = 
-      `⚡ 階段完成\n` +
-      `${symbolLine}\n\n` +
-      `階段二完成\n` +
-      `本輪結構結束\n\n` +
-      `狀態：週期重置`;
-  }
-  
-  // ---------- 6. 初始止损触发（周期关闭）----------
+
+  // ----- 6. 初始止损触发 -----
   else if (isInitialStop(text)) {
-    body = 
+    body =
       `⚡ 週期關閉\n` +
       `${symbolLine}\n\n` +
       `風險觸發\n` +
       `倉位關閉\n\n` +
       `狀態：重置`;
   }
-  
-  // ---------- 其他未知消息（简单清理后输出）----------
+
+  // ----- 其他未知消息 -----
   else {
-    body = String(text).replace(/,\s*/g, "\n").replace(/\\n/g, "\n");
+    body = text.replace(/,\s*/g, "\n").replace(/\\n/g, "\n");
   }
 
-  // 直接返回正文，无任何头部文字
   return body;
 }
 
-// ---------- Discord 发送（纯文本，无 embed）----------
+// ---------- 发送到 Discord（纯文本，无 embed）----------
 async function sendToDiscord(messageData) {
   if (!SEND_TO_DISCORD || !DISCORD_WEBHOOK_URL) {
     console.log("Discord发送未启用或Webhook未配置，跳过");
     return { success: true, skipped: true };
   }
   try {
-    console.log("=== 开始发送到Discord（纯文本） ===");
-    const discordPayload = { content: messageData };
-    const response = await fetch(DISCORD_WEBHOOK_URL, {
+    const payload = { content: messageData };
+    const resp = await fetch(DISCORD_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(discordPayload)
+      body: JSON.stringify(payload)
     });
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Discord响应错误:", errorText);
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
-    }
-    console.log("Discord消息发送成功");
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     return { success: true };
-  } catch (error) {
-    console.error("发送到Discord失败:", error);
-    return { success: false, error: error.message, skipped: false };
+  } catch (e) {
+    console.error("Discord发送失败:", e);
+    return { success: false, error: e.message };
   }
 }
 
-// ---------- KOOK 发送（保持不变）----------
+// ---------- 发送到 KOOK ----------
 async function sendToKook(messageData, rawData, messageType) {
-  if (!SEND_TO_KOOK) {
-    console.log("KOOK发送未启用，跳过");
-    return { success: true, skipped: true };
-  }
+  if (!SEND_TO_KOOK) return { success: true, skipped: true };
   try {
-    console.log("=== 开始发送到腾讯云KOOK服务 ===");
-    const kookPayload = {
+    const payload = {
       channelId: DEFAULT_KOOK_CHANNEL_ID,
       formattedMessage: messageData,
-      messageType: messageType,
+      messageType,
       timestamp: Date.now(),
       symbol: getSymbol(rawData),
       direction: getDirection(rawData)
     };
-    const response = await fetch(TENCENT_CLOUD_KOOK_URL, {
+    const resp = await fetch(TENCENT_CLOUD_KOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(kookPayload)
+      body: JSON.stringify(payload)
     });
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("腾讯云响应错误:", errorText);
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
-    }
-    const result = await response.json();
-    console.log("腾讯云KOOK服务响应:", result);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const result = await resp.json();
     return { success: true, data: result };
-  } catch (error) {
-    console.error("发送到腾讯云KOOK服务失败:", error);
-    return { success: false, error: error.message, skipped: false };
+  } catch (e) {
+    console.error("KOOK发送失败:", e);
+    return { success: false, error: e.message };
   }
 }
 
@@ -264,18 +246,16 @@ export async function POST(req) {
 
     if (contentType.includes("application/json")) {
       const json = await req.json();
-      raw = typeof json === "string" ? json : json?.message || json?.text || json?.content || JSON.stringify(json || {});
+      raw = typeof json === "string" ? json : json?.message || json?.text || json?.content || JSON.stringify(json);
     } else {
       raw = await req.text();
     }
 
-    console.log("原始请求数据:", raw.substring(0, 500) + (raw.length > 500 ? "..." : ""));
-    let processedRaw = String(raw || "").replace(/\\u[\dA-Fa-f]{4}/g, '').replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
+    const processedRaw = String(raw).replace(/\\u[\dA-Fa-f]{4}/g, '').replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
       .replace(/[^\x00-\x7F\u4e00-\u9fa5\s]/g, '').replace(/\s+/g, ' ').trim();
 
-    const isValid = processedRaw && /(品种|方向|开仓|止损|TP1|TP2|保本|盈利|胜率|交易次数)/.test(processedRaw);
-    if (!isValid) {
-      console.log("收到无效或空白消息，跳过处理");
+    if (!processedRaw || !/(品种|方向|开仓|止损|TP1|TP2|保本|盈利|胜率|交易次数)/.test(processedRaw)) {
+      console.log("无效或空白消息，跳过");
       return NextResponse.json({ ok: true, skipped: true, reason: "无效或空白消息" });
     }
 
@@ -284,32 +264,67 @@ export async function POST(req) {
     console.log("消息类型:", messageType);
     console.log("格式化消息预览:\n", formattedMessage);
 
-    console.log("=== 开始并行发送消息 ===");
+    // 检查是否需要附加图片（仅保本/TP1/TP2）
+    let imageUrl = null;
+    if (isBreakeven(processedRaw) || isTP1(processedRaw) || isTP2(processedRaw)) {
+      const symbol = getSymbol(processedRaw) || "SYMBOL";
+      const direction = getDirection(processedRaw) || "买";
+      const entry = getNum(processedRaw, "开仓价格") || (symbol && lastEntryBySymbol[symbol]?.entry) || null;
+      // 对于保本，价格取保本位或触发价；对于 TP1/TP2，价格取对应 TP 价或最新价
+      let price = null;
+      if (isBreakeven(processedRaw)) {
+        price = getNum(processedRaw, "保本位") || getNum(processedRaw, "触发价格") || getNum(processedRaw, "平仓价格");
+      } else if (isTP1(processedRaw)) {
+        price = getNum(processedRaw, "TP1价格") || getNum(processedRaw, "TP1");
+      } else if (isTP2(processedRaw)) {
+        price = getNum(processedRaw, "TP2价格") || getNum(processedRaw, "TP2");
+      }
+      // 若没有特定价格，尝试用最新价格
+      if (price === null) {
+        price = getNum(processedRaw, "最新价格") || getNum(processedRaw, "当前价格") || getNum(processedRaw, "市价");
+      }
+
+      imageUrl = generateImageURL({
+        symbol,
+        direction, // 自动转为买/卖
+        entry,
+        price,
+        capital: DEFAULT_CAPITAL,
+      });
+
+      console.log("生成的图片URL:", imageUrl);
+    }
+
+    // 最终发送的消息内容：纯文本 + 图片 Markdown 链接（仅钉钉和 KOOK 支持，Discord 纯文本）
+    let finalMessage = formattedMessage;
+    if (imageUrl) {
+      // 钉钉/KOOK 支持 Markdown 图片语法
+      finalMessage += `\n\n![交易图表](${imageUrl})`;
+    }
+
+    // 并行发送
     const [dingtalkResult, kookResult, discordResult] = await Promise.allSettled([
+      // 钉钉发送
       (async () => {
-        console.log("开始发送到钉钉...");
         if (USE_RELAY_SERVICE) {
           const relayPayload = {
-            message: formattedMessage,
+            message: finalMessage,
             needImage: false,
             imageParams: null,
-            dingtalkWebhook: DINGTALK_WEBHOOK
+            dingtalkWebhook: DINGTALK_WEBHOOK,
           };
-          const relayResponse = await fetch(RELAY_SERVICE_URL, {
+          const resp = await fetch(RELAY_SERVICE_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(relayPayload)
           });
-          const relayData = await relayResponse.json();
-          if (!relayData.success) throw new Error(relayData.error || "中继服务返回错误");
-          return { ok: true, relayData, method: "relay" };
+          const data = await resp.json();
+          if (!data.success) throw new Error(data.error);
+          return { ok: true, relayData: data };
         } else {
           const markdown = {
             msgtype: "markdown",
-            markdown: {
-              title: "交易通知",
-              text: formattedMessage
-            },
+            markdown: { title: "交易通知", text: finalMessage },
             at: { isAtAll: false }
           };
           const resp = await fetch(DINGTALK_WEBHOOK, {
@@ -318,11 +333,15 @@ export async function POST(req) {
             body: JSON.stringify(markdown)
           });
           const data = await resp.json().catch(() => ({}));
-          return { ok: true, dingTalk: data, method: "direct" };
+          return { ok: true, dingTalk: data };
         }
       })(),
-      sendToKook(formattedMessage, processedRaw, messageType),
-      sendToDiscord(formattedMessage)
+
+      // KOOK 发送
+      sendToKook(finalMessage, processedRaw, messageType),
+
+      // Discord 发送（纯文本，不含图片 Markdown）
+      sendToDiscord(formattedMessage) // Discord 不发送图片 Markdown
     ]);
 
     const results = {
@@ -331,18 +350,16 @@ export async function POST(req) {
       discord: discordResult.status === 'fulfilled' ? discordResult.value : { error: discordResult.reason?.message }
     };
 
-    console.log("=== 最终发送结果 ===", results);
-    return NextResponse.json({ ok: true, results, method: USE_RELAY_SERVICE ? "relay" : "direct" });
+    console.log("最终发送结果:", results);
+    return NextResponse.json({ ok: true, results });
   } catch (e) {
     console.error("处理请求时发生错误:", e);
-    return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: String(e.message || e) }, { status: 500 });
   }
 }
 
+// ---------- GET 用于健康检查 ----------
 export const dynamic = 'force-dynamic';
 export async function GET() {
-  return new Response(
-    JSON.stringify({ message: 'TradingView Webhook API is running', timestamp: new Date().toISOString() }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } }
-  );
+  return new Response(JSON.stringify({ message: 'TradingView Webhook API is running', timestamp: new Date().toISOString() }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }

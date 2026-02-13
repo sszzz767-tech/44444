@@ -102,7 +102,7 @@ export async function GET(request) {
                     {/* 右上角：时间（Geist Regular，细体） */}
                     <div style={{
                         position: 'absolute',
-                        right: '445px',
+                        right: '420px',
                         top: '145px',
                         fontSize: '33px',
                         fontWeight: 400,
@@ -130,11 +130,11 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '53px',
-                        top: '470px',
+                        top: '475px',
                         fontSize: '35px',
                         fontWeight: 900,
                         fontFamily: 'Geist',
-                        color: displayDirection === '卖' ? '#cc3333' : '#00FA9A',
+                        color: displayDirection === '卖' ? '#cc3333' : '#35B97C',
                     }}>
                         {displayDirection}
                     </div>
@@ -147,7 +147,7 @@ export async function GET(request) {
                        fontSize: '75px',
                        fontWeight: 900,
                        fontFamily: 'Geist',
-                       color: profitAmount >= 0 ? '#00FA9A' : '#cc3333',
+                       color: profitAmount >= 0 ? '#35B97C' : '#cc3333',
                        display: 'flex',
                        alignItems: 'baseline',
                        gap: '8px',
@@ -155,7 +155,7 @@ export async function GET(request) {
                         <span>{displayProfit}</span>
                    {/* USDT 加粗，使用 Geist Black 字重 900 */}
                    <span style={{
-                       fontSize: '40px',
+                       fontSize: '45px',
                        fontWeight: 900,
                        color: '#F0F0F0',
                        marginLeft: '5px',

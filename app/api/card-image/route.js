@@ -180,8 +180,8 @@ export async function GET(request) {
                 </div>
             ),
             {
-                width: 600,
-                height: 350,
+                width: 950,
+                height: 1300,
                 headers: {
                     'Content-Type': 'image/png',
                     'Cache-Control': 'public, max-age=3600',

@@ -1,11 +1,10 @@
 // /app/api/card-image/route.js
-// 最终完整版 —— 同时加载 Geist-Black (900) 和 Geist-Regular (400)
+// 最终版 —— 新底图（无 USDT），代码中动态添加 USDT，完全保留原有排版
 import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
-// ---------- 智能价格格式化（保留原始精度，最多5位）----------
 function formatPriceSmart(value) {
     if (value === null || value === undefined) return '-';
     if (typeof value === 'string') {
@@ -21,7 +20,6 @@ function formatPriceSmart(value) {
     return strValue;
 }
 
-// ---------- 盈利金额计算（真实价差，无随机）----------
 function calculateProfit(entry, current, direction, capital = 1000, leverage = 30) {
     if (!entry || !current) return null;
     const entryNum = parseFloat(entry);
@@ -39,7 +37,6 @@ function calculateProfit(entry, current, direction, capital = 1000, leverage = 3
     return profitAmount;
 }
 
-// ---------- 北京时间格式化----------
 function getBeijingTime() {
     const now = new Date();
     const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
@@ -54,7 +51,8 @@ function getBeijingTime() {
 
 export async function GET(request) {
     try {
-        const BACKGROUND_IMAGE_URL = 'https://res.cloudinary.com/dtbc3aa1o/image/upload/v1770995999/%E6%96%B0%E5%BA%95%E5%9B%BE1_bh9ysa.png';
+        // ⭐ 使用您的新底图（已去除 USDT）
+        const BACKGROUND_IMAGE_URL = 'https://res.cloudinary.com/dtbc3aa1o/image/upload/v1770971863/%E6%96%B0%E5%BA%95%E5%9B%BE_eoyhgf.png';
 
         const { searchParams } = new URL(request.url);
         const symbol = searchParams.get('symbol') || 'SOLUSDT.P';
@@ -79,7 +77,6 @@ export async function GET(request) {
             ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
             : '+0.00';
 
-        // 同时加载 Black 和 Regular 两个字重
         const origin = new URL(request.url).origin;
         const blackFontUrl = `${origin}/fonts/Geist-Black.ttf`;
         const regularFontUrl = `${origin}/fonts/Geist-Regular.ttf`;
@@ -102,10 +99,10 @@ export async function GET(request) {
                         position: 'relative',
                     }}
                 >
-                    {/* 右上角：时间（使用 Geist Regular，字重 400） */}
+                    {/* 右上角：时间（Geist Regular，细体） */}
                     <div style={{
                         position: 'absolute',
-                        right: '420px',
+                        right: '445px',
                         top: '145px',
                         fontSize: '33px',
                         fontWeight: 400,
@@ -116,7 +113,7 @@ export async function GET(request) {
                         {displayTime}
                     </div>
 
-                    {/* 交易对（使用 Geist Black，字重 900） */}
+                    {/* 交易对（Geist Black，粗体） */}
                     <div style={{
                         position: 'absolute',
                         left: '50px',
@@ -129,36 +126,43 @@ export async function GET(request) {
                         {displaySymbol}
                     </div>
 
-                    {/* 方向（Geist Black，绿色 #00FA9A） */}
+                    {/* 方向（Geist Black，粗体） */}
                     <div style={{
                         position: 'absolute',
                         left: '53px',
-                        top: '473px',
+                        top: '470px',
                         fontSize: '35px',
                         fontWeight: 900,
                         fontFamily: 'Geist',
-                        color: displayDirection === '卖' ? '#cc3333' : '#35B97C',
+                        color: displayDirection === '卖' ? '#cc3333' : '#00FA9A',
                     }}>
                         {displayDirection}
                     </div>
 
-                    {/* 盈利金额（Geist Black，绿色 #00FA9A） */}
+                    {/* 盈利金额 + USDT（Geist Black 数字 + Geist Regular 单位） */}
                     <div style={{
                         position: 'absolute',
-                        left: '55px',
-                        top: '595px',
-                        fontSize: '90px',
+                        left: '40px',        // 保持你调整后的左移位置
+                        top: '585px',
+                        fontSize: '75px',     // 保持你调整后的字号
                         fontWeight: 900,
                         fontFamily: 'Geist',
-                        color: profitAmount >= 0 ? '#35B97C' : '#cc3333',
+                        color: profitAmount >= 0 ? '#00FA9A' : '#cc3333',
                         display: 'flex',
                         alignItems: 'baseline',
                         gap: '8px',
                     }}>
                         <span>{displayProfit}</span>
+                        {/* ⭐ 动态添加 USDT，使用细体、稍小字号、浅色 */}
+                        <span style={{
+                            fontSize: '40px',
+                            fontWeight: 400,
+                            color: '#F0F0F0',
+                            marginLeft: '5px',
+                        }}>USDT</span>
                     </div>
 
-                    {/* 开仓价格（Geist Regular，字重 400） */}
+                    {/* 开仓价格（Geist Regular，细体） */}
                     <div style={{
                         position: 'absolute',
                         left: '60px',
@@ -171,7 +175,7 @@ export async function GET(request) {
                         {displayEntry}
                     </div>
 
-                    {/* 最新价格（Geist Regular，字重 400） */}
+                    {/* 最新价格（Geist Regular，细体） */}
                     <div style={{
                         position: 'absolute',
                         left: '505px',
@@ -189,18 +193,8 @@ export async function GET(request) {
                 width: 950,
                 height: 1300,
                 fonts: [
-                    {
-                        name: 'Geist',
-                        data: blackData,
-                        style: 'normal',
-                        weight: 900,
-                    },
-                    {
-                        name: 'Geist',
-                        data: regularData,
-                        style: 'normal',
-                        weight: 400,
-                    },
+                    { name: 'Geist', data: blackData, style: 'normal', weight: 900 },
+                    { name: 'Geist', data: regularData, style: 'normal', weight: 400 },
                 ],
                 headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' },
             }

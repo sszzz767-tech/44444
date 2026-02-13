@@ -103,7 +103,7 @@ export async function GET(request) {
                     {/* 右上角：时间（白色粗体） */}
                     <div style={{
                         position: 'absolute',
-                        right: '430px',
+                        right: '445px',
                         top: '145px',
                         fontSize: '33px',
                         fontWeight: '800',
@@ -129,7 +129,7 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '50px',
-                        top: '450px',
+                        top: '465px',
                         fontSize: '40px',
                         fontWeight: '1000',
                         color: displayDirection === '卖' ? '#cc3333' : '#00aa5e',
@@ -141,7 +141,7 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '55px',
-                        top: '600px',
+                        top: '585px',
                         fontSize: '90px',
                         fontWeight: '1800',
                         color: profitAmount >= 0 ? '#00aa5e' : '#cc3333',
@@ -156,7 +156,7 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '55px',      // 根据底图“开仓价格”标签位置微调
-                        bottom: '480px',
+                        bottom: '450px',
                         fontSize: '35px',
                         fontWeight: '1400',
                         color: '#ffffff',
@@ -168,7 +168,7 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '505px',     // 根据底图“最新价格”标签位置微调
-                        bottom: '480px',
+                        bottom: '460px',
                         fontSize: '35px',
                         fontWeight: '1400',
                         color: '#ffffff',

@@ -1,12 +1,20 @@
 // /app/api/card-image/route.js
-// 终极稳定版 —— 使用 next/font 加载 Geist 字体
+// 最终稳定版 —— 使用本地 TTF 字体文件
 import { ImageResponse } from '@vercel/og';
-// 从 geist 包中加载字重为 900 的 Geist Sans 字体
-import { GeistSans } from 'geist/font';
+import localFont from 'next/font/local';
+
+// 加载本地 TTF 字体文件（路径相对于项目根目录）
+const geistBlack = localFont({
+  src: '../../public/fonts/Geist-Black.ttf', // 从当前文件位置向上两级到根，再进入 public/fonts
+  weight: '900',
+  style: 'normal',
+  display: 'swap',
+});
 
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
+// ---------- 智能价格格式化（保留原始精度，最多5位）----------
 function formatPriceSmart(value) {
     if (value === null || value === undefined) return '-';
     if (typeof value === 'string') {
@@ -22,6 +30,7 @@ function formatPriceSmart(value) {
     return strValue;
 }
 
+// ---------- 盈利金额计算（真实价差，无随机）----------
 function calculateProfit(entry, current, direction, capital = 1000, leverage = 30) {
     if (!entry || !current) return null;
     const entryNum = parseFloat(entry);
@@ -39,6 +48,7 @@ function calculateProfit(entry, current, direction, capital = 1000, leverage = 3
     return profitAmount;
 }
 
+// ---------- 北京时间格式化----------
 function getBeijingTime() {
     const now = new Date();
     const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
@@ -78,9 +88,19 @@ export async function GET(request) {
             ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
             : '+0.00';
 
-        // **** 使用 next/font 加载的 Geist 字体 ****
-        // GeistSans.style.fontFamily 会返回类似 'Geist Sans' 的字体名称
-        // GeistSans.style.fontWeight 已经包含了 900 字重
+        // 获取字体数据
+        // 注意：localFont 的 src 是相对于项目根目录的，所以这里不需要再 fetch，直接通过 geistBlack 的样式获取字体文件 URL 并加载
+        // 更简单的方法：直接使用 geistBlack 的样式，让 @vercel/og 自动处理（需要确保字体文件在 public 内且路径正确）
+        // 但由于 @vercel/og 在 edge 环境可能无法自动读取 localFont 生成的 CSS，我们还是手动 fetch 字体文件
+        const origin = new URL(request.url).origin;
+        const fontUrl = `${origin}/fonts/Geist-Black.ttf`; // 注意路径是 /fonts/Geist-Black.ttf
+        const fontResponse = await fetch(fontUrl);
+        let fontData = null;
+        if (fontResponse.ok) {
+            fontData = await fontResponse.arrayBuffer();
+        } else {
+            console.error('字体加载失败，请检查文件是否在 public/fonts 目录下');
+        }
 
         return new ImageResponse(
             (
@@ -93,9 +113,7 @@ export async function GET(request) {
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         position: 'relative',
-                        // 直接使用 GeistSans 的字体家族
-                        fontFamily: GeistSans.style.fontFamily,
-                        // fontWeight 已在字体文件中定义，无需重复设置
+                        fontFamily: fontData ? 'Geist' : '"Arial Black", "Helvetica Bold", "PingFang SC Heavy", "Microsoft YaHei Bold", sans-serif',
                     }}
                 >
                     {/* 右上角：时间 */}
@@ -127,7 +145,7 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '53px',
-                        top: '470px',
+                        top: '473px',
                         fontSize: '35px',
                         fontWeight: '900',
                         color: displayDirection === '卖' ? '#cc3333' : '#00aa5e',
@@ -178,8 +196,7 @@ export async function GET(request) {
             {
                 width: 950,
                 height: 1300,
-                // 无需手动传递 fonts 数组，因为 GeistSans 的样式已通过 CSS 方式注入
-                // @vercel/og 会自动识别从 next/font 导入的字体
+                fonts: fontData ? [{ name: 'Geist', data: fontData, style: 'normal', weight: 900 }] : [],
                 headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' },
             }
         );

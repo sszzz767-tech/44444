@@ -1,5 +1,5 @@
 // /app/api/card-image/route.js
-// 最终版 —— 严格按你坐标，交易对&金额真正加粗（使用系统粗体字体）
+// 最终版 —— 加载 Geist-Black 字体，实现真正极粗效果
 import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'edge';
@@ -83,7 +83,15 @@ export async function GET(request) {
             ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
             : '+0.00';
 
-        // 5. 生成图片 —— 使用系统粗体字体，真正加粗
+        // 5. 加载极粗字体（Geist-Black，字重 900）
+        const geistBlack = await fetch('https://cdn.jsdelivr.net/npm/geist@1.3.0/fonts/geist-sans/Geist-Black.woff2')
+            .then(res => res.arrayBuffer())
+            .catch(err => {
+                console.error('字体加载失败，使用系统回退字体', err);
+                return null; // 如果失败，返回 null，后续用系统字体回退
+            });
+
+        // 6. 生成图片 —— 使用加载的字体实现极粗效果
         return new ImageResponse(
             (
                 <div
@@ -95,8 +103,7 @@ export async function GET(request) {
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         position: 'relative',
-                        // ⭐ 关键修改：直接调用系统粗体字体
-                        fontFamily: '"Arial Black", "Helvetica Bold", "PingFang SC Heavy", "Microsoft YaHei Bold", sans-serif',
+                        fontFamily: geistBlack ? 'Geist' : '"Arial Black", "Helvetica Bold", "PingFang SC Heavy", "Microsoft YaHei Bold", sans-serif',
                     }}
                 >
                     {/* 右上角：时间（保持你原来的粗度） */}
@@ -105,44 +112,44 @@ export async function GET(request) {
                         right: '445px',
                         top: '145px',
                         fontSize: '33px',
-                        fontWeight: '800',       // 不变
+                        fontWeight: '800',
                         color: '#ffffff',
                         letterSpacing: '0.5px',
                     }}>
                         {displayTime}
                     </div>
 
-                    {/* 交易对 —— 真正加粗（normal 即可使用粗体字体本身的粗度） */}
+                    {/* 交易对 —— 极粗 900 */}
                     <div style={{
                         position: 'absolute',
                         left: '50px',
                         top: '395px',
                         fontSize: '47px',
-                        fontWeight: 'normal',    // ⭐ 改为 normal
+                        fontWeight: '900',
                         color: '#ffffff',
                     }}>
                         {displaySymbol}
                     </div>
 
-                    {/* 方向（买/卖）—— 真正加粗 */}
+                    {/* 方向（买/卖）—— 极粗 900 */}
                     <div style={{
                         position: 'absolute',
                         left: '53px',
                         top: '470px',
                         fontSize: '35px',
-                        fontWeight: 'normal',    // ⭐ 改为 normal
+                        fontWeight: '900',
                         color: displayDirection === '卖' ? '#cc3333' : '#00aa5e',
                     }}>
                         {displayDirection}
                     </div>
 
-                    {/* 盈利金额 —— 真正加粗 */}
+                    {/* 盈利金额 —— 极粗 900 */}
                     <div style={{
                         position: 'absolute',
                         left: '55px',
                         top: '585px',
                         fontSize: '90px',
-                        fontWeight: 'normal',    // ⭐ 改为 normal
+                        fontWeight: '900',
                         color: profitAmount >= 0 ? '#00aa5e' : '#cc3333',
                         display: 'flex',
                         alignItems: 'baseline',
@@ -151,25 +158,25 @@ export async function GET(request) {
                         <span>{displayProfit}</span>
                     </div>
 
-                    {/* 开仓价格 —— 真正加粗 */}
+                    {/* 开仓价格 —— 极粗 900 */}
                     <div style={{
                         position: 'absolute',
                         left: '60px',
                         bottom: '430px',
                         fontSize: '35px',
-                        fontWeight: 'normal',    // ⭐ 改为 normal
+                        fontWeight: '900',
                         color: '#ffffff',
                     }}>
                         {displayEntry}
                     </div>
 
-                    {/* 最新价格 —— 真正加粗 */}
+                    {/* 最新价格 —— 极粗 900 */}
                     <div style={{
                         position: 'absolute',
                         left: '505px',
                         bottom: '430px',
                         fontSize: '35px',
-                        fontWeight: 'normal',    // ⭐ 改为 normal
+                        fontWeight: '900',
                         color: '#ffffff',
                     }}>
                         {displayPrice}
@@ -179,6 +186,14 @@ export async function GET(request) {
             {
                 width: 950,
                 height: 1300,
+                fonts: geistBlack ? [
+                    {
+                        name: 'Geist',
+                        data: geistBlack,
+                        style: 'normal',
+                        weight: 900,
+                    },
+                ] : [],
                 headers: {
                     'Content-Type': 'image/png',
                     'Cache-Control': 'public, max-age=3600',

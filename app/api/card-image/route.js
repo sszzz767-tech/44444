@@ -129,8 +129,8 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '50px',
-                        top: '390px',
-                        fontSize: '47px',
+                        top: '430px',
+                        fontSize: '35px',
                         fontWeight: '1000',
                         color: displayDirection === '卖' ? '#cc3333' : '#00aa5e',
                     }}>

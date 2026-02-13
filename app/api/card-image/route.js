@@ -1,5 +1,5 @@
 // /app/api/card-image/route.js
-// 最终版 —— 加载 Geist-Black 字体，实现真正极粗效果
+// 稳定版 —— 使用系统粗体字体，无需外部文件
 import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'edge';
@@ -83,15 +83,7 @@ export async function GET(request) {
             ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
             : '+0.00';
 
-        // 5. 加载极粗字体（Geist-Black，字重 900）
-        const geistBlack = await fetch('https://cdn.jsdelivr.net/npm/geist@1.3.0/fonts/geist-sans/Geist-Black.woff2')
-            .then(res => res.arrayBuffer())
-            .catch(err => {
-                console.error('字体加载失败，使用系统回退字体', err);
-                return null; // 如果失败，返回 null，后续用系统字体回退
-            });
-
-        // 6. 生成图片 —— 使用加载的字体实现极粗效果
+        // 5. 生成图片 —— 使用系统粗体字体，无需加载外部文件
         return new ImageResponse(
             (
                 <div
@@ -103,10 +95,11 @@ export async function GET(request) {
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         position: 'relative',
-                        fontFamily: geistBlack ? 'Geist' : '"Arial Black", "Helvetica Bold", "PingFang SC Heavy", "Microsoft YaHei Bold", sans-serif',
+                        // 使用所有操作系统都内置的粗体字体
+                        fontFamily: '"Arial Black", "Helvetica Bold", "PingFang SC Heavy", "Microsoft YaHei Bold", sans-serif',
                     }}
                 >
-                    {/* 右上角：时间（保持你原来的粗度） */}
+                    {/* 右上角：时间（保留稍细一些的 800） */}
                     <div style={{
                         position: 'absolute',
                         right: '445px',
@@ -186,14 +179,7 @@ export async function GET(request) {
             {
                 width: 950,
                 height: 1300,
-                fonts: geistBlack ? [
-                    {
-                        name: 'Geist',
-                        data: geistBlack,
-                        style: 'normal',
-                        weight: 900,
-                    },
-                ] : [],
+                // 无需 fonts 数组
                 headers: {
                     'Content-Type': 'image/png',
                     'Cache-Control': 'public, max-age=3600',

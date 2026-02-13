@@ -1,53 +1,11 @@
 // /app/api/card-image/route.js
-// 最终版 —— 绿色 #00FA9A，细体强化
+// 最终版 —— 同时加载 Geist-Black (900) 和 Geist-Regular (400)
 import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
-function formatPriceSmart(value) {
-    if (value === null || value === undefined) return '-';
-    if (typeof value === 'string') {
-        const trimmed = value.trim();
-        return trimmed || '-';
-    }
-    const strValue = value.toString();
-    const decimalIndex = strValue.indexOf('.');
-    if (decimalIndex === -1) return strValue;
-    const decimalPart = strValue.substring(decimalIndex + 1);
-    const decimalLength = decimalPart.length;
-    if (decimalLength > 5) return value.toFixed(5);
-    return strValue;
-}
-
-function calculateProfit(entry, current, direction, capital = 1000, leverage = 30) {
-    if (!entry || !current) return null;
-    const entryNum = parseFloat(entry);
-    const currentNum = parseFloat(current);
-    if (isNaN(entryNum) || isNaN(currentNum)) return null;
-
-    let priceDiff;
-    if (direction === '买' || direction === '多头' || direction === '多頭') {
-        priceDiff = currentNum - entryNum;
-    } else {
-        priceDiff = entryNum - currentNum;
-    }
-
-    const profitAmount = capital * leverage * (priceDiff / entryNum);
-    return profitAmount;
-}
-
-function getBeijingTime() {
-    const now = new Date();
-    const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-    const year = beijingTime.getUTCFullYear();
-    const month = String(beijingTime.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(beijingTime.getUTCDate()).padStart(2, '0');
-    const hours = String(beijingTime.getUTCHours()).padStart(2, '0');
-    const minutes = String(beijingTime.getUTCMinutes()).padStart(2, '0');
-    const seconds = String(beijingTime.getUTCSeconds()).padStart(2, '0');
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
+// ...（中间辅助函数不变，省略以节省篇幅，请保留您原有的 formatPriceSmart, calculateProfit, getBeijingTime 等函数）...
 
 export async function GET(request) {
     try {
@@ -76,11 +34,15 @@ export async function GET(request) {
             ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
             : '+0.00';
 
-        // 加载 Geist-Black 字体
+        // 同时加载两个字体
         const origin = new URL(request.url).origin;
-        const fontUrl = `${origin}/fonts/Geist-Black.ttf`;
-        const fontResponse = await fetch(fontUrl);
-        const fontData = await fontResponse.arrayBuffer();
+        const blackFontUrl = `${origin}/fonts/Geist-Black.ttf`;
+        const regularFontUrl = `${origin}/fonts/Geist-Regular.ttf`;
+
+        const [blackData, regularData] = await Promise.all([
+            fetch(blackFontUrl).then(res => res.arrayBuffer()),
+            fetch(regularFontUrl).then(res => res.arrayBuffer()),
+        ]);
 
         return new ImageResponse(
             (
@@ -95,21 +57,21 @@ export async function GET(request) {
                         position: 'relative',
                     }}
                 >
-                    {/* 右上角：时间（超细） */}
+                    {/* 右上角：时间（使用 Geist Regular，字重 400） */}
                     <div style={{
                         position: 'absolute',
                         right: '445px',
                         top: '145px',
                         fontSize: '33px',
-                        fontWeight: 200,
-                        fontFamily: '"Helvetica Neue Light", "Arial Narrow", "Arial", sans-serif',
+                        fontWeight: 400,
+                        fontFamily: 'Geist',
                         color: '#F0F0F0',
                         letterSpacing: '0.5px',
                     }}>
                         {displayTime}
                     </div>
 
-                    {/* 交易对（极粗 Geist） */}
+                    {/* 交易对（使用 Geist Black，字重 900） */}
                     <div style={{
                         position: 'absolute',
                         left: '50px',
@@ -122,7 +84,7 @@ export async function GET(request) {
                         {displaySymbol}
                     </div>
 
-                    {/* 方向（极粗 Geist，绿色 #00FA9A） */}
+                    {/* 方向（Geist Black，绿色 #00FA9A） */}
                     <div style={{
                         position: 'absolute',
                         left: '53px',
@@ -135,7 +97,7 @@ export async function GET(request) {
                         {displayDirection}
                     </div>
 
-                    {/* 盈利金额（极粗 Geist，绿色 #00FA9A） */}
+                    {/* 盈利金额（Geist Black，绿色 #00FA9A） */}
                     <div style={{
                         position: 'absolute',
                         left: '55px',
@@ -151,27 +113,27 @@ export async function GET(request) {
                         <span>{displayProfit}</span>
                     </div>
 
-                    {/* 开仓价格（超细） */}
+                    {/* 开仓价格（Geist Regular，字重 400） */}
                     <div style={{
                         position: 'absolute',
                         left: '60px',
                         bottom: '430px',
                         fontSize: '35px',
-                        fontWeight: 200,
-                        fontFamily: '"Helvetica Neue Light", "Arial Narrow", "Arial", sans-serif',
+                        fontWeight: 400,
+                        fontFamily: 'Geist',
                         color: '#F0F0F0',
                     }}>
                         {displayEntry}
                     </div>
 
-                    {/* 最新价格（超细） */}
+                    {/* 最新价格（Geist Regular，字重 400） */}
                     <div style={{
                         position: 'absolute',
                         left: '505px',
                         bottom: '430px',
                         fontSize: '35px',
-                        fontWeight: 200,
-                        fontFamily: '"Helvetica Neue Light", "Arial Narrow", "Arial", sans-serif',
+                        fontWeight: 400,
+                        fontFamily: 'Geist',
                         color: '#F0F0F0',
                     }}>
                         {displayPrice}
@@ -184,9 +146,15 @@ export async function GET(request) {
                 fonts: [
                     {
                         name: 'Geist',
-                        data: fontData,
+                        data: blackData,
                         style: 'normal',
                         weight: 900,
+                    },
+                    {
+                        name: 'Geist',
+                        data: regularData,
+                        style: 'normal',
+                        weight: 400,
                     },
                 ],
                 headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' },

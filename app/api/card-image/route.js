@@ -1,5 +1,5 @@
 // /app/api/card-image/route.js
-// 最终版 —— 时间/开仓价/最新价使用细体系统字体，方向/盈利使用鲜艳颜色+极粗Geist
+// 最终版 —— 颜色微调为 #00FA9A，字体粗细严格区分
 import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'edge';
@@ -76,7 +76,7 @@ export async function GET(request) {
             ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
             : '+0.00';
 
-        // 加载 Geist-Black 字体（用于需要极粗的部分）
+        // 加载 Geist-Black 字体
         const origin = new URL(request.url).origin;
         const fontUrl = `${origin}/fonts/Geist-Black.ttf`;
         const fontResponse = await fetch(fontUrl);
@@ -95,7 +95,7 @@ export async function GET(request) {
                         position: 'relative',
                     }}
                 >
-                    {/* 右上角：时间（细体系统字体） */}
+                    {/* 右上角：时间（系统细体） */}
                     <div style={{
                         position: 'absolute',
                         right: '445px',
@@ -122,7 +122,7 @@ export async function GET(request) {
                         {displaySymbol}
                     </div>
 
-                    {/* 方向（极粗 Geist，鲜艳颜色） */}
+                    {/* 方向（极粗 Geist，使用 #00FA9A） */}
                     <div style={{
                         position: 'absolute',
                         left: '53px',
@@ -130,20 +130,20 @@ export async function GET(request) {
                         fontSize: '35px',
                         fontWeight: 900,
                         fontFamily: 'Geist',
-                        color: displayDirection === '卖' ? '#cc3333' : '#00aa5e',
+                        color: displayDirection === '卖' ? '#cc3333' : '#00FA9A',
                     }}>
                         {displayDirection}
                     </div>
 
-                    {/* 盈利金额（极粗 Geist，鲜艳颜色） */}
+                    {/* 盈利金额（极粗 Geist，使用 #00FA9A） */}
                     <div style={{
                         position: 'absolute',
                         left: '55px',
-                        top: '595px',
+                        top: '585px',
                         fontSize: '90px',
                         fontWeight: 900,
                         fontFamily: 'Geist',
-                        color: profitAmount >= 0 ? '#00aa5e' : '#cc3333',
+                        color: profitAmount >= 0 ? '#00FA9A' : '#cc3333',
                         display: 'flex',
                         alignItems: 'baseline',
                         gap: '8px',
@@ -151,7 +151,7 @@ export async function GET(request) {
                         <span>{displayProfit}</span>
                     </div>
 
-                    {/* 开仓价格（细体系统字体） */}
+                    {/* 开仓价格（系统细体） */}
                     <div style={{
                         position: 'absolute',
                         left: '60px',
@@ -164,7 +164,7 @@ export async function GET(request) {
                         {displayEntry}
                     </div>
 
-                    {/* 最新价格（细体系统字体） */}
+                    {/* 最新价格（系统细体） */}
                     <div style={{
                         position: 'absolute',
                         left: '505px',

@@ -1,11 +1,12 @@
 // /app/api/card-image/route.js
-// 字体加载版 —— 使用 unpkg CDN 加载 Geist-Black，实现真正极粗效果
+// 终极稳定版 —— 使用 next/font 加载 Geist 字体
 import { ImageResponse } from '@vercel/og';
+// 从 geist 包中加载字重为 900 的 Geist Sans 字体
+import { GeistSans } from 'geist/font';
 
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
-// ---------- 智能价格格式化（保留原始精度，最多5位）----------
 function formatPriceSmart(value) {
     if (value === null || value === undefined) return '-';
     if (typeof value === 'string') {
@@ -21,7 +22,6 @@ function formatPriceSmart(value) {
     return strValue;
 }
 
-// ---------- 盈利金额计算（真实价差，无随机）----------
 function calculateProfit(entry, current, direction, capital = 1000, leverage = 30) {
     if (!entry || !current) return null;
     const entryNum = parseFloat(entry);
@@ -39,7 +39,6 @@ function calculateProfit(entry, current, direction, capital = 1000, leverage = 3
     return profitAmount;
 }
 
-// ---------- 北京时间格式化----------
 function getBeijingTime() {
     const now = new Date();
     const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
@@ -54,10 +53,8 @@ function getBeijingTime() {
 
 export async function GET(request) {
     try {
-        // 1. 固定背景图 URL
         const BACKGROUND_IMAGE_URL = 'https://res.cloudinary.com/dtbc3aa1o/image/upload/v1770971863/%E6%96%B0%E5%BA%95%E5%9B%BE_eoyhgf.png';
 
-        // 2. 获取查询参数
         const { searchParams } = new URL(request.url);
         const symbol = searchParams.get('symbol') || 'SOLUSDT.P';
         const direction = searchParams.get('direction') || '买';
@@ -67,14 +64,12 @@ export async function GET(request) {
         const capital = parseFloat(searchParams.get('capital') || process.env.DEFAULT_CAPITAL || '1000');
         const leverage = 30;
 
-        // 3. 格式化显示值
         const displaySymbol = symbol.replace('.P', '').replace('.p', '') + ' 永续';
         const displayDirection = (direction === '空头' || direction === '卖' || direction === '賣' || direction === '空') ? '卖' : '买';
         const displayEntry = formatPriceSmart(entry || '-');
         const displayPrice = formatPriceSmart(price || entry || '-');
         const displayTime = timeParam || getBeijingTime();
 
-        // 4. 计算盈利金额
         let profitAmount = null;
         if (entry && price) {
             profitAmount = calculateProfit(entry, price, direction, capital, leverage);
@@ -83,22 +78,10 @@ export async function GET(request) {
             ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
             : '+0.00';
 
-        // 5. 加载极粗字体（Geist-Black）从 unpkg CDN
-        let geistBlack = null;
-        try {
-            const fontUrl = 'https://unpkg.com/geist@1.3.0/fonts/geist-sans/Geist-Black.woff2';
-            const fontResponse = await fetch(fontUrl);
-            if (fontResponse.ok) {
-                geistBlack = await fontResponse.arrayBuffer();
-                console.log('字体加载成功');
-            } else {
-                console.error('字体加载失败，状态码:', fontResponse.status);
-            }
-        } catch (e) {
-            console.error('字体加载异常:', e);
-        }
+        // **** 使用 next/font 加载的 Geist 字体 ****
+        // GeistSans.style.fontFamily 会返回类似 'Geist Sans' 的字体名称
+        // GeistSans.style.fontWeight 已经包含了 900 字重
 
-        // 6. 生成图片
         return new ImageResponse(
             (
                 <div
@@ -110,11 +93,12 @@ export async function GET(request) {
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         position: 'relative',
-                        // 如果字体加载成功，使用 Geist；否则回退到系统粗体
-                        fontFamily: geistBlack ? 'Geist' : '"Arial Black", "Helvetica Bold", "PingFang SC Heavy", "Microsoft YaHei Bold", sans-serif',
+                        // 直接使用 GeistSans 的字体家族
+                        fontFamily: GeistSans.style.fontFamily,
+                        // fontWeight 已在字体文件中定义，无需重复设置
                     }}
                 >
-                    {/* 右上角：时间（保持稍细的 800） */}
+                    {/* 右上角：时间 */}
                     <div style={{
                         position: 'absolute',
                         right: '445px',
@@ -127,7 +111,7 @@ export async function GET(request) {
                         {displayTime}
                     </div>
 
-                    {/* 交易对 —— 极粗 900 */}
+                    {/* 交易对 */}
                     <div style={{
                         position: 'absolute',
                         left: '50px',
@@ -139,11 +123,11 @@ export async function GET(request) {
                         {displaySymbol}
                     </div>
 
-                    {/* 方向（买/卖）—— 极粗 900 */}
+                    {/* 方向 */}
                     <div style={{
                         position: 'absolute',
                         left: '53px',
-                        top: '475px',
+                        top: '470px',
                         fontSize: '35px',
                         fontWeight: '900',
                         color: displayDirection === '卖' ? '#cc3333' : '#00aa5e',
@@ -151,7 +135,7 @@ export async function GET(request) {
                         {displayDirection}
                     </div>
 
-                    {/* 盈利金额 —— 极粗 900 */}
+                    {/* 盈利金额 */}
                     <div style={{
                         position: 'absolute',
                         left: '55px',
@@ -166,7 +150,7 @@ export async function GET(request) {
                         <span>{displayProfit}</span>
                     </div>
 
-                    {/* 开仓价格 —— 极粗 900 */}
+                    {/* 开仓价格 */}
                     <div style={{
                         position: 'absolute',
                         left: '60px',
@@ -178,7 +162,7 @@ export async function GET(request) {
                         {displayEntry}
                     </div>
 
-                    {/* 最新价格 —— 极粗 900 */}
+                    {/* 最新价格 */}
                     <div style={{
                         position: 'absolute',
                         left: '505px',
@@ -194,25 +178,13 @@ export async function GET(request) {
             {
                 width: 950,
                 height: 1300,
-                fonts: geistBlack ? [
-                    {
-                        name: 'Geist',
-                        data: geistBlack,
-                        style: 'normal',
-                        weight: 900,
-                    },
-                ] : [],
-                headers: {
-                    'Content-Type': 'image/png',
-                    'Cache-Control': 'public, max-age=3600',
-                },
+                // 无需手动传递 fonts 数组，因为 GeistSans 的样式已通过 CSS 方式注入
+                // @vercel/og 会自动识别从 next/font 导入的字体
+                headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' },
             }
         );
     } catch (error) {
         console.error('图片生成失败:', error);
-        return new Response(
-            JSON.stringify({ error: '图片生成失败', message: error.message }),
-            { status: 500, headers: { 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ error: '图片生成失败', message: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 }

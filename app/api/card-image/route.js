@@ -54,7 +54,7 @@ function getBeijingTime() {
 
 export async function GET(request) {
     try {
-        const BACKGROUND_IMAGE_URL = 'https://res.cloudinary.com/dtbc3aa1o/image/upload/v1770971863/%E6%96%B0%E5%BA%95%E5%9B%BE_eoyhgf.png';
+        const BACKGROUND_IMAGE_URL = 'https://res.cloudinary.com/dtbc3aa1o/image/upload/v1770995999/%E6%96%B0%E5%BA%95%E5%9B%BE1_bh9ysa.png';
 
         const { searchParams } = new URL(request.url);
         const symbol = searchParams.get('symbol') || 'SOLUSDT.P';

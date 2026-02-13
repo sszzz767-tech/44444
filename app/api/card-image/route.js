@@ -1,5 +1,5 @@
 // /app/api/card-image/route.js
-// 最终调试版 —— 强制加载本地字体，添加日志
+// 最终定稿版 —— 字体成功加载，微调粗细和颜色
 import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'edge';
@@ -76,26 +76,11 @@ export async function GET(request) {
             ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
             : '+0.00';
 
-        // **** 字体加载核心部分 ****
+        // 加载字体（确保成功）
         const origin = new URL(request.url).origin;
         const fontUrl = `${origin}/fonts/Geist-Black.ttf`;
-        console.log('尝试加载字体:', fontUrl); // 在 Vercel 日志中查看此路径
-
-        let fontData = null;
-        try {
-            const fontResponse = await fetch(fontUrl);
-            if (fontResponse.ok) {
-                fontData = await fontResponse.arrayBuffer();
-                console.log('字体加载成功，大小:', fontData.byteLength);
-            } else {
-                console.error('字体加载失败，HTTP状态:', fontResponse.status);
-            }
-        } catch (e) {
-            console.error('字体加载异常:', e);
-        }
-
-        // 如果字体加载失败，使用系统粗体回退
-        const fontFamily = fontData ? 'Geist' : '"Arial Black", "Helvetica Bold", "PingFang SC Heavy", "Microsoft YaHei Bold", sans-serif';
+        const fontResponse = await fetch(fontUrl);
+        const fontData = await fontResponse.arrayBuffer();
 
         return new ImageResponse(
             (
@@ -108,54 +93,54 @@ export async function GET(request) {
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         position: 'relative',
-                        fontFamily: fontFamily,
+                        fontFamily: 'Geist',
                     }}
                 >
-                    {/* 右上角：时间（保持较细） */}
+                    {/* 右上角：时间（正常粗细） */}
                     <div style={{
                         position: 'absolute',
                         right: '445px',
                         top: '145px',
                         fontSize: '33px',
-                        fontWeight: '500',      // 调低以匹配原图时间粗细
-                        color: '#ffffff',
+                        fontWeight: 400,
+                        color: '#F0F0F0',
                         letterSpacing: '0.5px',
                     }}>
                         {displayTime}
                     </div>
 
-                    {/* 交易对 */}
+                    {/* 交易对（极粗） */}
                     <div style={{
                         position: 'absolute',
                         left: '50px',
                         top: '395px',
                         fontSize: '47px',
-                        fontWeight: '900',
-                        color: '#ffffff',
+                        fontWeight: 900,
+                        color: '#F0F0F0',
                     }}>
                         {displaySymbol}
                     </div>
 
-                    {/* 方向 */}
+                    {/* 方向（极粗，深色系） */}
                     <div style={{
                         position: 'absolute',
                         left: '53px',
-                        top: '475px',
+                        top: '470px',
                         fontSize: '35px',
-                        fontWeight: '900',
-                        color: displayDirection === '卖' ? '#8B3A3A' : '#005C3B', // 更深沉的绿/红
+                        fontWeight: 900,
+                        color: displayDirection === '卖' ? '#7A4A4A' : '#006C5E',
                     }}>
                         {displayDirection}
                     </div>
 
-                    {/* 盈利金额 */}
+                    {/* 盈利金额（极粗，深色系） */}
                     <div style={{
                         position: 'absolute',
                         left: '55px',
-                        top: '585px',
+                        top: '595px',
                         fontSize: '90px',
-                        fontWeight: '900',
-                        color: profitAmount >= 0 ? '#005C3B' : '#8B3A3A',
+                        fontWeight: 900,
+                        color: profitAmount >= 0 ? '#006C5E' : '#7A4A4A',
                         display: 'flex',
                         alignItems: 'baseline',
                         gap: '8px',
@@ -163,26 +148,26 @@ export async function GET(request) {
                         <span>{displayProfit}</span>
                     </div>
 
-                    {/* 开仓价格 */}
+                    {/* 开仓价格（正常粗细） */}
                     <div style={{
                         position: 'absolute',
                         left: '60px',
                         bottom: '430px',
                         fontSize: '35px',
-                        fontWeight: '900',
-                        color: '#ffffff',
+                        fontWeight: 400,
+                        color: '#F0F0F0',
                     }}>
                         {displayEntry}
                     </div>
 
-                    {/* 最新价格 */}
+                    {/* 最新价格（正常粗细） */}
                     <div style={{
                         position: 'absolute',
                         left: '505px',
                         bottom: '430px',
                         fontSize: '35px',
-                        fontWeight: '900',
-                        color: '#ffffff',
+                        fontWeight: 400,
+                        color: '#F0F0F0',
                     }}>
                         {displayPrice}
                     </div>
@@ -191,8 +176,14 @@ export async function GET(request) {
             {
                 width: 950,
                 height: 1300,
-                // 只有当字体数据存在时才传递 fonts 数组
-                fonts: fontData ? [{ name: 'Geist', data: fontData, style: 'normal', weight: 900 }] : [],
+                fonts: [
+                    {
+                        name: 'Geist',
+                        data: fontData,
+                        style: 'normal',
+                        weight: 900,  // 注册为900字重，用于极粗文字
+                    },
+                ],
                 headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' },
             }
         );

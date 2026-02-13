@@ -1,5 +1,5 @@
 // /app/api/card-image/route.js
-// 最终定稿版 —— 字体成功加载，微调粗细和颜色
+// 最终版 —— 时间/开仓价/最新价使用细体系统字体，方向/盈利使用鲜艳颜色+极粗Geist
 import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'edge';
@@ -76,7 +76,7 @@ export async function GET(request) {
             ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
             : '+0.00';
 
-        // 加载字体（确保成功）
+        // 加载 Geist-Black 字体（用于需要极粗的部分）
         const origin = new URL(request.url).origin;
         const fontUrl = `${origin}/fonts/Geist-Black.ttf`;
         const fontResponse = await fetch(fontUrl);
@@ -93,54 +93,57 @@ export async function GET(request) {
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         position: 'relative',
-                        fontFamily: 'Geist',
                     }}
                 >
-                    {/* 右上角：时间（正常粗细） */}
+                    {/* 右上角：时间（细体系统字体） */}
                     <div style={{
                         position: 'absolute',
                         right: '445px',
                         top: '145px',
                         fontSize: '33px',
                         fontWeight: 400,
+                        fontFamily: 'Arial, "Helvetica Neue", sans-serif',
                         color: '#F0F0F0',
                         letterSpacing: '0.5px',
                     }}>
                         {displayTime}
                     </div>
 
-                    {/* 交易对（极粗） */}
+                    {/* 交易对（极粗 Geist） */}
                     <div style={{
                         position: 'absolute',
                         left: '50px',
                         top: '395px',
                         fontSize: '47px',
                         fontWeight: 900,
+                        fontFamily: 'Geist',
                         color: '#F0F0F0',
                     }}>
                         {displaySymbol}
                     </div>
 
-                    {/* 方向（极粗，深色系） */}
+                    {/* 方向（极粗 Geist，鲜艳颜色） */}
                     <div style={{
                         position: 'absolute',
                         left: '53px',
                         top: '470px',
                         fontSize: '35px',
                         fontWeight: 900,
-                        color: displayDirection === '卖' ? '#7A4A4A' : '#006C5E',
+                        fontFamily: 'Geist',
+                        color: displayDirection === '卖' ? '#cc3333' : '#00aa5e',
                     }}>
                         {displayDirection}
                     </div>
 
-                    {/* 盈利金额（极粗，深色系） */}
+                    {/* 盈利金额（极粗 Geist，鲜艳颜色） */}
                     <div style={{
                         position: 'absolute',
                         left: '55px',
                         top: '595px',
                         fontSize: '90px',
                         fontWeight: 900,
-                        color: profitAmount >= 0 ? '#006C5E' : '#7A4A4A',
+                        fontFamily: 'Geist',
+                        color: profitAmount >= 0 ? '#00aa5e' : '#cc3333',
                         display: 'flex',
                         alignItems: 'baseline',
                         gap: '8px',
@@ -148,25 +151,27 @@ export async function GET(request) {
                         <span>{displayProfit}</span>
                     </div>
 
-                    {/* 开仓价格（正常粗细） */}
+                    {/* 开仓价格（细体系统字体） */}
                     <div style={{
                         position: 'absolute',
                         left: '60px',
                         bottom: '430px',
                         fontSize: '35px',
                         fontWeight: 400,
+                        fontFamily: 'Arial, "Helvetica Neue", sans-serif',
                         color: '#F0F0F0',
                     }}>
                         {displayEntry}
                     </div>
 
-                    {/* 最新价格（正常粗细） */}
+                    {/* 最新价格（细体系统字体） */}
                     <div style={{
                         position: 'absolute',
                         left: '505px',
                         bottom: '430px',
                         fontSize: '35px',
                         fontWeight: 400,
+                        fontFamily: 'Arial, "Helvetica Neue", sans-serif',
                         color: '#F0F0F0',
                     }}>
                         {displayPrice}
@@ -181,7 +186,7 @@ export async function GET(request) {
                         name: 'Geist',
                         data: fontData,
                         style: 'normal',
-                        weight: 900,  // 注册为900字重，用于极粗文字
+                        weight: 900,
                     },
                 ],
                 headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' },

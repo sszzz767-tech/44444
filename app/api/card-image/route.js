@@ -1,11 +1,56 @@
 // /app/api/card-image/route.js
-// 最终版 —— 同时加载 Geist-Black (900) 和 Geist-Regular (400)
+// 最终完整版 —— 同时加载 Geist-Black (900) 和 Geist-Regular (400)
 import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
-// ...（中间辅助函数不变，省略以节省篇幅，请保留您原有的 formatPriceSmart, calculateProfit, getBeijingTime 等函数）...
+// ---------- 智能价格格式化（保留原始精度，最多5位）----------
+function formatPriceSmart(value) {
+    if (value === null || value === undefined) return '-';
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return trimmed || '-';
+    }
+    const strValue = value.toString();
+    const decimalIndex = strValue.indexOf('.');
+    if (decimalIndex === -1) return strValue;
+    const decimalPart = strValue.substring(decimalIndex + 1);
+    const decimalLength = decimalPart.length;
+    if (decimalLength > 5) return value.toFixed(5);
+    return strValue;
+}
+
+// ---------- 盈利金额计算（真实价差，无随机）----------
+function calculateProfit(entry, current, direction, capital = 1000, leverage = 30) {
+    if (!entry || !current) return null;
+    const entryNum = parseFloat(entry);
+    const currentNum = parseFloat(current);
+    if (isNaN(entryNum) || isNaN(currentNum)) return null;
+
+    let priceDiff;
+    if (direction === '买' || direction === '多头' || direction === '多頭') {
+        priceDiff = currentNum - entryNum;
+    } else {
+        priceDiff = entryNum - currentNum;
+    }
+
+    const profitAmount = capital * leverage * (priceDiff / entryNum);
+    return profitAmount;
+}
+
+// ---------- 北京时间格式化----------
+function getBeijingTime() {
+    const now = new Date();
+    const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const year = beijingTime.getUTCFullYear();
+    const month = String(beijingTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(beijingTime.getUTCDate()).padStart(2, '0');
+    const hours = String(beijingTime.getUTCHours()).padStart(2, '0');
+    const minutes = String(beijingTime.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(beijingTime.getUTCSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
 
 export async function GET(request) {
     try {
@@ -34,7 +79,7 @@ export async function GET(request) {
             ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
             : '+0.00';
 
-        // 同时加载两个字体
+        // 同时加载 Black 和 Regular 两个字重
         const origin = new URL(request.url).origin;
         const blackFontUrl = `${origin}/fonts/Geist-Black.ttf`;
         const regularFontUrl = `${origin}/fonts/Geist-Regular.ttf`;

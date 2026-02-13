@@ -103,7 +103,7 @@ export async function GET(request) {
                     {/* 右上角：时间（白色粗体） */}
                     <div style={{
                         position: 'absolute',
-                        right: '480px',
+                        right: '460px',
                         top: '140px',
                         fontSize: '35px',
                         fontWeight: '800',
@@ -117,7 +117,7 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '50px',
-                        top: '375px',
+                        top: '360px',
                         fontSize: '45px',
                         fontWeight: '1800',
                         color: '#ffffff',
@@ -128,10 +128,10 @@ export async function GET(request) {
                     {/* 方向（买/卖）—— 置于底图“30x”左侧，形成“买 30x”视觉效果 */}
                     <div style={{
                         position: 'absolute',
-                        left: '55px',
-                        top: '480px',
-                        fontSize: '35px',
-                        fontWeight: '1100',
+                        left: '50px',
+                        top: '360px',
+                        fontSize: '45px',
+                        fontWeight: '1000',
                         color: displayDirection === '卖' ? '#cc3333' : '#00aa5e',
                     }}>
                         {displayDirection}
@@ -141,7 +141,7 @@ export async function GET(request) {
                     <div style={{
                         position: 'absolute',
                         left: '55px',
-                        top: '520px',
+                        top: '600px',
                         fontSize: '75px',
                         fontWeight: '1800',
                         color: profitAmount >= 0 ? '#00aa5e' : '#cc3333',
@@ -155,8 +155,8 @@ export async function GET(request) {
                     {/* 开仓价格（白色粗体）- 左下，紧贴“开仓价格”标签右侧 */}
                     <div style={{
                         position: 'absolute',
-                        left: '85px',      // 根据底图“开仓价格”标签位置微调
-                        bottom: '350px',
+                        left: '45px',      // 根据底图“开仓价格”标签位置微调
+                        bottom: '500px',
                         fontSize: '35px',
                         fontWeight: '1400',
                         color: '#ffffff',
@@ -167,8 +167,8 @@ export async function GET(request) {
                     {/* 最新价格（白色粗体）- 右下，紧贴“最新价格”标签右侧 */}
                     <div style={{
                         position: 'absolute',
-                        left: '520px',     // 根据底图“最新价格”标签位置微调
-                        bottom: '350px',
+                        left: '500px',     // 根据底图“最新价格”标签位置微调
+                        bottom: '550px',
                         fontSize: '35px',
                         fontWeight: '1400',
                         color: '#ffffff',

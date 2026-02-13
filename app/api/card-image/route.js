@@ -144,7 +144,7 @@ export async function GET(request) {
                        position: 'absolute',
                        left: '40px',
                        top: '585px',
-                       fontSize: '75px',
+                       fontSize: '85px',
                        fontWeight: 900,
                        fontFamily: 'Geist',
                        color: profitAmount >= 0 ? '#35B97C' : '#cc3333',
@@ -155,7 +155,7 @@ export async function GET(request) {
                         <span>{displayProfit}</span>
                    {/* USDT 加粗，使用 Geist Black 字重 900 */}
                    <span style={{
-                       fontSize: '45px',
+                       fontSize: '50px',
                        fontWeight: 900,
                        color: '#F0F0F0',
                        marginLeft: '5px',

@@ -1,5 +1,5 @@
 // /app/api/card-image/route.js
-// 稳定版 —— 使用系统粗体字体，无需外部文件
+// 视觉加粗版 —— 使用 text-shadow 模拟加粗，无需额外字体
 import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'edge';
@@ -83,7 +83,7 @@ export async function GET(request) {
             ? `${profitAmount > 0 ? '+' : ''}${profitAmount.toFixed(2)}` 
             : '+0.00';
 
-        // 5. 生成图片 —— 使用系统粗体字体，无需加载外部文件
+        // 5. 生成图片 —— 使用系统粗体字体 + 阴影加粗
         return new ImageResponse(
             (
                 <div
@@ -95,11 +95,10 @@ export async function GET(request) {
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         position: 'relative',
-                        // 使用所有操作系统都内置的粗体字体
                         fontFamily: '"Arial Black", "Helvetica Bold", "PingFang SC Heavy", "Microsoft YaHei Bold", sans-serif',
                     }}
                 >
-                    {/* 右上角：时间（保留稍细一些的 800） */}
+                    {/* 右上角：时间（不加阴影，保持原样） */}
                     <div style={{
                         position: 'absolute',
                         right: '445px',
@@ -112,7 +111,7 @@ export async function GET(request) {
                         {displayTime}
                     </div>
 
-                    {/* 交易对 —— 极粗 900 */}
+                    {/* 交易对 —— 加阴影加粗 */}
                     <div style={{
                         position: 'absolute',
                         left: '50px',
@@ -120,23 +119,25 @@ export async function GET(request) {
                         fontSize: '47px',
                         fontWeight: '900',
                         color: '#ffffff',
+                        textShadow: '2px 0 0 currentColor, -2px 0 0 currentColor', // 水平方向加粗
                     }}>
                         {displaySymbol}
                     </div>
 
-                    {/* 方向（买/卖）—— 极粗 900 */}
+                    {/* 方向（买/卖）—— 加阴影加粗 */}
                     <div style={{
                         position: 'absolute',
                         left: '53px',
-                        top: '470px',
+                        top: '467px',
                         fontSize: '35px',
                         fontWeight: '900',
                         color: displayDirection === '卖' ? '#cc3333' : '#00aa5e',
+                        textShadow: '2px 0 0 currentColor, -2px 0 0 currentColor',
                     }}>
                         {displayDirection}
                     </div>
 
-                    {/* 盈利金额 —— 极粗 900 */}
+                    {/* 盈利金额 —— 加阴影加粗 */}
                     <div style={{
                         position: 'absolute',
                         left: '55px',
@@ -144,6 +145,7 @@ export async function GET(request) {
                         fontSize: '90px',
                         fontWeight: '900',
                         color: profitAmount >= 0 ? '#00aa5e' : '#cc3333',
+                        textShadow: '2px 0 0 currentColor, -2px 0 0 currentColor',
                         display: 'flex',
                         alignItems: 'baseline',
                         gap: '8px',
@@ -151,7 +153,7 @@ export async function GET(request) {
                         <span>{displayProfit}</span>
                     </div>
 
-                    {/* 开仓价格 —— 极粗 900 */}
+                    {/* 开仓价格 —— 加阴影加粗 */}
                     <div style={{
                         position: 'absolute',
                         left: '60px',
@@ -159,11 +161,12 @@ export async function GET(request) {
                         fontSize: '35px',
                         fontWeight: '900',
                         color: '#ffffff',
+                        textShadow: '2px 0 0 currentColor, -2px 0 0 currentColor',
                     }}>
                         {displayEntry}
                     </div>
 
-                    {/* 最新价格 —— 极粗 900 */}
+                    {/* 最新价格 —— 加阴影加粗 */}
                     <div style={{
                         position: 'absolute',
                         left: '505px',
@@ -171,6 +174,7 @@ export async function GET(request) {
                         fontSize: '35px',
                         fontWeight: '900',
                         color: '#ffffff',
+                        textShadow: '2px 0 0 currentColor, -2px 0 0 currentColor',
                     }}>
                         {displayPrice}
                     </div>
@@ -179,7 +183,6 @@ export async function GET(request) {
             {
                 width: 950,
                 height: 1300,
-                // 无需 fonts 数组
                 headers: {
                     'Content-Type': 'image/png',
                     'Cache-Control': 'public, max-age=3600',

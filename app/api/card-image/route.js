@@ -71,7 +71,7 @@ console.log("- entry显示:", entry);
     const profitColor = "#00ff88";
 
     // 使用 Cloudinary 图片链接
-    let backgroundImageUrl = "https://res.cloudinary.com/dtbc3aa1o/image/upload/c_fill,w_600,h_350,g_auto/v1757087627/bi_yhyeuy.jpg";
+    let backgroundImageUrl = "https://res.cloudinary.com/dtbc3aa1o/image/upload/v1770971863/%E6%96%B0%E5%BA%95%E5%9B%BE_eoyhgf.png";
     console.log("使用背景图片:", backgroundImageUrl);
     
     // 验证图片是否可访问

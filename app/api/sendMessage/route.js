@@ -266,7 +266,7 @@ async function sendToKook(messageData, rawData, messageType, imageUrl = null) {
   }
 }
 
-// ---------- 发送到 Discord（精简文本 + 纯图片卡片）----------
+// ---------- 发送到 Discord（精简文本 + 增强型 embed 以触发图片）----------
 async function sendToDiscord(messageData, imageUrl = null) {
   if (!SEND_TO_DISCORD || !DISCORD_WEBHOOK_URL) {
     console.log("Discord发送未启用或Webhook未配置，跳过");
@@ -274,10 +274,28 @@ async function sendToDiscord(messageData, imageUrl = null) {
   }
 
   try {
-    console.log("=== 开始发送到Discord（文本 + 纯图片卡片） ===");
+    console.log("=== 开始发送到Discord（文本 + 增强embed） ===");
+    
+    // 构建 embed，仅添加必要字段（可设为不可见或空值）
+    const embed = {
+      // 添加一个不可见的 title（空格），确保 embed 有效
+      title: " ",
+      // 可选的描述，也可留空
+      description: "",
+      // 时间戳（可选，但有助于区分消息）
+      timestamp: new Date().toISOString(),
+      // 颜色可设为透明或与背景一致，这里设为 null 或 0（无色）
+      color: null, // 或 0x000000，但 null 可能更安全
+    };
+
+    // 如果有图片，添加到 embed
+    if (imageUrl) {
+      embed.image = { url: imageUrl };
+    }
+
     const discordPayload = {
-      content: messageData,
-      embeds: imageUrl ? [{ image: { url: imageUrl } }] : []
+      content: messageData, // 文本消息单独发送
+      embeds: [embed]
     };
 
     const response = await fetch(DISCORD_WEBHOOK_URL, {
@@ -295,7 +313,7 @@ async function sendToDiscord(messageData, imageUrl = null) {
     console.log("Discord消息发送成功");
     return { success: true };
   } catch (error) {
-    console.error("发送到Discord失败:", error);
+    console.error("Discord发送失败:", error);
     return { success: false, error: error.message, skipped: false };
   }
 }

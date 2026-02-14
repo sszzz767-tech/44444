@@ -9,6 +9,7 @@ const SEND_TO_DISCORD = process.env.SEND_TO_DISCORD === "true";
 const DEFAULT_CAPITAL = parseFloat(process.env.DEFAULT_CAPITAL || "1000");
 const IMAGE_BASE_URL = process.env.IMAGE_BASE_URL || "https://aa44444.vercel.app";
 
+// 用于临时存储开仓价格（按交易对）
 const lastEntryBySymbol = Object.create(null);
 
 // ---------- 辅助解析函数 ----------
@@ -41,6 +42,7 @@ function getLatestPrice(text) {
   return getNum(text, "最新价格") || getNum(text, "当前价格") || getNum(text, "市价");
 }
 
+// ---------- 格式化价格（保留原始精度，最多5位）----------
 function formatPriceSmart(value) {
   if (value === null || value === undefined) return "-";
   if (typeof value === 'string') {
@@ -56,7 +58,7 @@ function formatPriceSmart(value) {
   return strValue;
 }
 
-// ---------- 消息类型判断 ----------
+// ---------- 消息类型判断（严格模式）----------
 function isTP2(t) { return /(?:^|\n)TP2达成/.test(t); }
 function isTP1(t) { return /(?:^|\n)TP1达成/.test(t); }
 function isBreakeven(t) { return /(?:^|\n)已到保本位置/.test(t); }
@@ -76,7 +78,7 @@ function getMessageType(text) {
   return "OTHER";
 }
 
-// ---------- 修复的图片价格获取函数（经过验证）----------
+// ---------- 图片价格获取函数（经过验证）----------
 function getImagePrice(rawData, entryPrice) {
   console.log("=== getImagePrice 详细调试 ===");
   console.log("原始数据:", rawData);
@@ -205,7 +207,7 @@ function formatForDingTalk(raw) {
   return body;
 }
 
-// ---------- 发送到 Discord（仅当有图片时才添加 embed）----------
+// ---------- 发送到 Discord（纯 embed 模式，文本 + 图片，无彩色）----------
 async function sendToDiscord(messageData, imageUrl = null) {
   if (!SEND_TO_DISCORD || !DISCORD_WEBHOOK_URL) {
     console.log("Discord发送未启用或Webhook未配置，跳过");
@@ -213,23 +215,23 @@ async function sendToDiscord(messageData, imageUrl = null) {
   }
 
   try {
-    console.log("=== 开始发送到Discord（最终版） ===");
+    console.log("=== 开始发送到Discord（纯 embed 模式） ===");
     
-    const discordPayload = {
-      content: messageData,
+    const embed = {
+      title: "\u200B",                // 零宽空格，不可见
+      description: messageData,       // 精简文本
+      color: null,                    // 无色
+      timestamp: new Date().toISOString(),
+      footer: { text: "\u200B" },     // 零宽空格
     };
 
-    // 只有存在图片URL时才添加embed（避免开仓消息出现空白卡片）
     if (imageUrl) {
-      discordPayload.embeds = [{
-        title: "\u200B",
-        description: "\u200B",
-        color: null,
-        timestamp: new Date().toISOString(),
-        footer: { text: "\u200B" },
-        image: { url: imageUrl }
-      }];
+      embed.image = { url: imageUrl };
     }
+
+    const discordPayload = {
+      embeds: [embed]                  // 只发送 embed，无 content
+    };
 
     const response = await fetch(DISCORD_WEBHOOK_URL, {
       method: "POST",
@@ -339,7 +341,7 @@ export async function POST(req) {
         }
       })(),
 
-      // Discord 发送
+      // Discord 发送（纯 embed）
       sendToDiscord(formattedMessage, imageUrl)
     ]);
 

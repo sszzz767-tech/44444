@@ -3,14 +3,10 @@ import { NextResponse } from "next/server";
 // ---------- 环境变量 ----------
 const DINGTALK_WEBHOOK = process.env.DINGTALK_WEBHOOK || "https://oapi.dingtalk.com/robot/send?access_token=你的token";
 const RELAY_SERVICE_URL = process.env.RELAY_SERVICE_URL || "https://send-todingtalk-pnvjfgztkw.cn-hangzhou.fcapp.run";
-const TENCENT_CLOUD_KOOK_URL = process.env.TENCENT_CLOUD_KOOK_URL || "https://你的腾讯云函数地址";
 const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
 const USE_RELAY_SERVICE = process.env.USE_RELAY_SERVICE === "true";
-const SEND_TO_KOOK = process.env.SEND_TO_KOOK === "true";
 const SEND_TO_DISCORD = process.env.SEND_TO_DISCORD === "true";
-const DEFAULT_KOOK_CHANNEL_ID = process.env.DEFAULT_KOOK_CHANNEL_ID || "3152587560978791";
 const DEFAULT_CAPITAL = parseFloat(process.env.DEFAULT_CAPITAL || "1000");
-// 图片服务的部署域名（请在 Vercel 环境变量中设置）
 const IMAGE_BASE_URL = process.env.IMAGE_BASE_URL || "https://aa44444.vercel.app";
 
 const lastEntryBySymbol = Object.create(null);
@@ -132,7 +128,7 @@ function getImagePrice(rawData, entryPrice) {
   return finalPrice;
 }
 
-// ---------- 构建图片 URL（添加 .png 后缀）----------
+// ---------- 构建图片 URL（旧链路，无后缀）----------
 function generateImageURL(params) {
   const { symbol, direction, entry, price, capital = DEFAULT_CAPITAL } = params;
   const url = new URL(`${IMAGE_BASE_URL}/api/card-image`);
@@ -226,47 +222,7 @@ function formatForDingTalk(raw) {
   return body;
 }
 
-// ---------- 发送到 KOOK（可禁用）----------
-async function sendToKook(messageData, rawData, messageType, imageUrl = null) {
-  if (!SEND_TO_KOOK) {
-    console.log("KOOK发送未启用，跳过");
-    return { success: true, skipped: true };
-  }
-
-  try {
-    console.log("=== 开始发送到腾讯云KOOK服务 ===");
-    const kookPayload = {
-      channelId: DEFAULT_KOOK_CHANNEL_ID,
-      formattedMessage: messageData,
-      messageType: messageType,
-      imageUrl: imageUrl,
-      timestamp: Date.now(),
-      symbol: getSymbol(rawData),
-      direction: getDirection(rawData)
-    };
-
-    const response = await fetch(TENCENT_CLOUD_KOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(kookPayload)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("腾讯云响应错误:", errorText);
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
-    }
-
-    const result = await response.json();
-    console.log("腾讯云KOOK服务响应:", result);
-    return { success: true, data: result };
-  } catch (error) {
-    console.error("发送到腾讯云KOOK服务失败:", error);
-    return { success: false, error: error.message, skipped: false };
-  }
-}
-
-// ---------- 发送到 Discord（精简文本 + 增强型 embed 以触发图片）----------
+// ---------- 发送到 Discord（精简文本 + 兼容性 embed，确保图片显示）----------
 async function sendToDiscord(messageData, imageUrl = null) {
   if (!SEND_TO_DISCORD || !DISCORD_WEBHOOK_URL) {
     console.log("Discord发送未启用或Webhook未配置，跳过");
@@ -274,27 +230,23 @@ async function sendToDiscord(messageData, imageUrl = null) {
   }
 
   try {
-    console.log("=== 开始发送到Discord（文本 + 增强embed） ===");
+    console.log("=== 开始发送到Discord（文本 + 兼容性embed） ===");
     
-    // 构建 embed，仅添加必要字段（可设为不可见或空值）
+    // 构建一个包含必要字段的 embed，所有视觉元素置空
     const embed = {
-      // 添加一个不可见的 title（空格），确保 embed 有效
-      title: " ",
-      // 可选的描述，也可留空
-      description: "",
-      // 时间戳（可选，但有助于区分消息）
+      title: " ",               // 空格占位，确保不为空
+      description: " ",         // 空格占位
+      color: 0x000000,          // 黑色，融入深色背景
       timestamp: new Date().toISOString(),
-      // 颜色可设为透明或与背景一致，这里设为 null 或 0（无色）
-      color: null, // 或 0x000000，但 null 可能更安全
+      footer: { text: " " },    // 空格占位
     };
 
-    // 如果有图片，添加到 embed
     if (imageUrl) {
       embed.image = { url: imageUrl };
     }
 
     const discordPayload = {
-      content: messageData, // 文本消息单独发送
+      content: messageData,
       embeds: [embed]
     };
 
@@ -367,8 +319,8 @@ export async function POST(req) {
       }
     }
 
-    // 并行发送（钉钉、KOOK、Discord）
-    const [dingtalkResult, kookResult, discordResult] = await Promise.allSettled([
+    // 并行发送（钉钉、Discord）
+    const [dingtalkResult, discordResult] = await Promise.allSettled([
       // 钉钉发送
       (async () => {
         let finalMessage = formattedMessage;
@@ -406,16 +358,12 @@ export async function POST(req) {
         }
       })(),
 
-      // KOOK 发送
-      sendToKook(formattedMessage, processedRaw, messageType, imageUrl),
-
-      // Discord 发送（文本 + 纯图片卡片）
+      // Discord 发送
       sendToDiscord(formattedMessage, imageUrl)
     ]);
 
     const results = {
       dingtalk: dingtalkResult.status === 'fulfilled' ? dingtalkResult.value : { error: dingtalkResult.reason?.message },
-      kook: kookResult.status === 'fulfilled' ? kookResult.value : { error: kookResult.reason?.message },
       discord: discordResult.status === 'fulfilled' ? discordResult.value : { error: discordResult.reason?.message }
     };
 

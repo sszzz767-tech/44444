@@ -41,7 +41,6 @@ function getLatestPrice(text) {
   return getNum(text, "最新价格") || getNum(text, "当前价格") || getNum(text, "市价");
 }
 
-// ---------- 格式化价格（保留原始精度，最多5位）----------
 function formatPriceSmart(value) {
   if (value === null || value === undefined) return "-";
   if (typeof value === 'string') {
@@ -57,7 +56,6 @@ function formatPriceSmart(value) {
   return strValue;
 }
 
-// ---------- 消息类型判断 ----------
 function isTP2(t) { return /TP2达成/.test(t); }
 function isTP1(t) { return /TP1达成/.test(t); }
 function isBreakeven(t) { return /已到保本位置/.test(t); }
@@ -77,17 +75,13 @@ function getMessageType(text) {
   return "OTHER";
 }
 
-// ---------- 修复的图片价格获取函数（经过验证）----------
 function getImagePrice(rawData, entryPrice) {
   console.log("=== getImagePrice 详细调试 ===");
   console.log("原始数据:", rawData);
-  
   const latestPrice = getLatestPrice(rawData);
   console.log("- 最新价格:", latestPrice);
-  
   const closingPrice = getNum(rawData, "平仓价格");
   console.log("- 平仓价格:", closingPrice);
-  
   let triggerPrice = null;
   if (isTP1(rawData)) {
     triggerPrice = getNum(rawData, "TP1价格") || getNum(rawData, "TP1") || closingPrice;
@@ -98,7 +92,6 @@ function getImagePrice(rawData, entryPrice) {
   } else if (isBreakeven(rawData)) {
     triggerPrice = closingPrice || getNum(rawData, "触发价格") || getNum(rawData, "保本位") || getNum(rawData, "移动止损到保本位");
     console.log("- 保本触发价格:", triggerPrice);
-    
     if (!triggerPrice) {
       const priceMatch = rawData.match(/(?:平仓价格|触发价格|保本位|移动止损到保本位)\s*[:：]\s*(\d+(?:\.\d+)?)/);
       if (priceMatch) {
@@ -107,9 +100,7 @@ function getImagePrice(rawData, entryPrice) {
       }
     }
   }
-  
   console.log("- 开仓价格:", entryPrice);
-  
   let finalPrice;
   if (closingPrice) {
     finalPrice = closingPrice;
@@ -121,14 +112,11 @@ function getImagePrice(rawData, entryPrice) {
       finalPrice = latestPrice || triggerPrice || entryPrice;
     }
   }
-  
   console.log("- 最终选择的价格:", finalPrice);
   console.log("=== getImagePrice 调试结束 ===");
-  
   return finalPrice;
 }
 
-// ---------- 构建图片 URL（旧链路，无后缀）----------
 function generateImageURL(params) {
   const { symbol, direction, entry, price, capital = DEFAULT_CAPITAL } = params;
   const url = new URL(`${IMAGE_BASE_URL}/api/card-image`);
@@ -140,7 +128,6 @@ function generateImageURL(params) {
   return url.toString();
 }
 
-// ---------- 精简版消息格式化（无头部、无时间戳、无盈利百分比）----------
 function formatForDingTalk(raw) {
   const text = String(raw || "").replace(/\\u[\dA-Fa-f]{4}/g, '').replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
     .replace(/[^\x00-\x7F\u4e00-\u9fa5\s]/g, '').replace(/\s+/g, ' ').trim();
@@ -161,7 +148,6 @@ function formatForDingTalk(raw) {
   }
 
   let body = "";
-
   if (isEntry(text)) {
     body =
       `⚡ 系統啟動\n` +
@@ -172,8 +158,7 @@ function formatForDingTalk(raw) {
       `階段一：${formatPriceSmart(tp1Price)}\n` +
       `階段二：${formatPriceSmart(tp2Price)}\n\n` +
       `狀態：持倉`;
-  }
-  else if (isBreakeven(text)) {
+  } else if (isBreakeven(text)) {
     body =
       `⚡ 倉位更新\n` +
       `${symbolLine}\n\n` +
@@ -181,24 +166,21 @@ function formatForDingTalk(raw) {
       `風險轉移完成\n\n` +
       `保護：${formatPriceSmart(breakevenPrice || triggerPrice)}\n\n` +
       `狀態：已保護`;
-  }
-  else if (isTP1(text)) {
+  } else if (isTP1(text)) {
     body =
       `⚡ 階段推進\n` +
       `${symbolLine}\n\n` +
       `階段一完成\n` +
       `結構延伸中\n\n` +
       `狀態：持續持倉`;
-  }
-  else if (isTP2(text)) {
+  } else if (isTP2(text)) {
     body =
       `⚡ 階段完成\n` +
       `${symbolLine}\n\n` +
       `階段二完成\n` +
       `本輪結構結束\n\n` +
       `狀態：週期重置`;
-  }
-  else if (isBreakevenStop(text)) {
+  } else if (isBreakevenStop(text)) {
     body =
       `⚡ 倉位關閉\n` +
       `${symbolLine}\n\n` +
@@ -206,23 +188,20 @@ function formatForDingTalk(raw) {
       `倉位平倉\n\n` +
       `風險已完全轉移\n\n` +
       `狀態：重置`;
-  }
-  else if (isInitialStop(text)) {
+  } else if (isInitialStop(text)) {
     body =
       `⚡ 週期關閉\n` +
       `${symbolLine}\n\n` +
       `風險觸發\n` +
       `倉位關閉\n\n` +
       `狀態：重置`;
-  }
-  else {
+  } else {
     body = text.replace(/,\s*/g, "\n").replace(/\\n/g, "\n");
   }
-
   return body;
 }
 
-// ---------- 发送到 Discord（精简文本 + 兼容性 embed，确保图片显示）----------
+// ==================== 最终修改点：Discord embed ====================
 async function sendToDiscord(messageData, imageUrl = null) {
   if (!SEND_TO_DISCORD || !DISCORD_WEBHOOK_URL) {
     console.log("Discord发送未启用或Webhook未配置，跳过");
@@ -230,15 +209,15 @@ async function sendToDiscord(messageData, imageUrl = null) {
   }
 
   try {
-    console.log("=== 开始发送到Discord（文本 + 兼容性embed） ===");
+    console.log("=== 开始发送到Discord（最终兼容版） ===");
     
-    // 构建一个包含必要字段的 embed，所有视觉元素置空
+    // 构建一个最小但有效的 embed，所有视觉元素使用不可见字符
     const embed = {
-      title: " ",               // 空格占位，确保不为空
-      description: " ",         // 空格占位
-      color: 0x000000,          // 黑色，融入深色背景
+      title: "\u200B",                // 零宽空格，完全不可见
+      description: "\u200B",          // 零宽空格
+      color: null,                    // 无色，彻底避免边框
       timestamp: new Date().toISOString(),
-      footer: { text: " " },    // 空格占位
+      footer: { text: "\u200B" },     // 零宽空格
     };
 
     if (imageUrl) {
@@ -269,8 +248,8 @@ async function sendToDiscord(messageData, imageUrl = null) {
     return { success: false, error: error.message, skipped: false };
   }
 }
+// ================================================================
 
-// ---------- POST 入口 ----------
 export async function POST(req) {
   try {
     console.log("=== 收到TradingView Webhook请求 ===");
@@ -297,7 +276,6 @@ export async function POST(req) {
     console.log("消息类型:", messageType);
     console.log("格式化消息预览:\n", formattedMessage);
 
-    // 生成图片（仅保本/TP1/TP2）
     let imageUrl = null;
     if (isBreakeven(processedRaw) || isTP1(processedRaw) || isTP2(processedRaw)) {
       const symbol = getSymbol(processedRaw) || "SYMBOL";
@@ -319,9 +297,7 @@ export async function POST(req) {
       }
     }
 
-    // 并行发送（钉钉、Discord）
     const [dingtalkResult, discordResult] = await Promise.allSettled([
-      // 钉钉发送
       (async () => {
         let finalMessage = formattedMessage;
         if (imageUrl) {
@@ -357,8 +333,6 @@ export async function POST(req) {
           return { ok: true, dingTalk: data };
         }
       })(),
-
-      // Discord 发送
       sendToDiscord(formattedMessage, imageUrl)
     ]);
 
@@ -375,7 +349,6 @@ export async function POST(req) {
   }
 }
 
-// ---------- GET 健康检查 ----------
 export const dynamic = 'force-dynamic';
 export async function GET() {
   return new Response(JSON.stringify({ message: 'TradingView Webhook API is running', timestamp: new Date().toISOString() }), { status: 200, headers: { 'Content-Type': 'application/json' } });

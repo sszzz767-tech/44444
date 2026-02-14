@@ -56,15 +56,10 @@ function formatPriceSmart(value) {
   return strValue;
 }
 
-function isTP2(t) {
-  return /(?:^|\n)TP2达成/.test(t); // 匹配行首的“TP2达成”
-}
-function isTP1(t) {
-  return /(?:^|\n)TP1达成/.test(t); // 匹配行首的“TP1达成”
-}
-function isBreakeven(t) {
-  return /(?:^|\n)已到保本位置/.test(t); // 匹配行首的“已到保本位置”
-}
+// ---------- 消息类型判断 ----------
+function isTP2(t) { return /(?:^|\n)TP2达成/.test(t); }
+function isTP1(t) { return /(?:^|\n)TP1达成/.test(t); }
+function isBreakeven(t) { return /(?:^|\n)已到保本位置/.test(t); }
 function isBreakevenStop(t) { return /保本止损.*触发/.test(t); }
 function isInitialStop(t) { return /初始止损.*触发/.test(t); }
 function isEntry(t) {
@@ -81,6 +76,7 @@ function getMessageType(text) {
   return "OTHER";
 }
 
+// ---------- 修复的图片价格获取函数（经过验证）----------
 function getImagePrice(rawData, entryPrice) {
   console.log("=== getImagePrice 详细调试 ===");
   console.log("原始数据:", rawData);
@@ -123,6 +119,7 @@ function getImagePrice(rawData, entryPrice) {
   return finalPrice;
 }
 
+// ---------- 构建图片 URL（旧链路，无后缀）----------
 function generateImageURL(params) {
   const { symbol, direction, entry, price, capital = DEFAULT_CAPITAL } = params;
   const url = new URL(`${IMAGE_BASE_URL}/api/card-image`);
@@ -134,6 +131,7 @@ function generateImageURL(params) {
   return url.toString();
 }
 
+// ---------- 精简版消息格式化（无头部、无时间戳、无盈利百分比）----------
 function formatForDingTalk(raw) {
   const text = String(raw || "").replace(/\\u[\dA-Fa-f]{4}/g, '').replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
     .replace(/[^\x00-\x7F\u4e00-\u9fa5\s]/g, '').replace(/\s+/g, ' ').trim();
@@ -207,7 +205,7 @@ function formatForDingTalk(raw) {
   return body;
 }
 
-// ==================== 最终修改点：Discord embed ====================
+// ---------- 发送到 Discord（仅当有图片时才添加 embed）----------
 async function sendToDiscord(messageData, imageUrl = null) {
   if (!SEND_TO_DISCORD || !DISCORD_WEBHOOK_URL) {
     console.log("Discord发送未启用或Webhook未配置，跳过");
@@ -215,25 +213,23 @@ async function sendToDiscord(messageData, imageUrl = null) {
   }
 
   try {
-    console.log("=== 开始发送到Discord（最终兼容版） ===");
+    console.log("=== 开始发送到Discord（最终版） ===");
     
-    // 构建一个最小但有效的 embed，所有视觉元素使用不可见字符
-    const embed = {
-      title: "\u200B",                // 零宽空格，完全不可见
-      description: "\u200B",          // 零宽空格
-      color: null,                    // 无色，彻底避免边框
-      timestamp: new Date().toISOString(),
-      footer: { text: "\u200B" },     // 零宽空格
-    };
-
-    if (imageUrl) {
-      embed.image = { url: imageUrl };
-    }
-
     const discordPayload = {
       content: messageData,
-      embeds: [embed]
     };
+
+    // 只有存在图片URL时才添加embed（避免开仓消息出现空白卡片）
+    if (imageUrl) {
+      discordPayload.embeds = [{
+        title: "\u200B",
+        description: "\u200B",
+        color: null,
+        timestamp: new Date().toISOString(),
+        footer: { text: "\u200B" },
+        image: { url: imageUrl }
+      }];
+    }
 
     const response = await fetch(DISCORD_WEBHOOK_URL, {
       method: "POST",
@@ -254,8 +250,8 @@ async function sendToDiscord(messageData, imageUrl = null) {
     return { success: false, error: error.message, skipped: false };
   }
 }
-// ================================================================
 
+// ---------- POST 入口 ----------
 export async function POST(req) {
   try {
     console.log("=== 收到TradingView Webhook请求 ===");
@@ -282,6 +278,7 @@ export async function POST(req) {
     console.log("消息类型:", messageType);
     console.log("格式化消息预览:\n", formattedMessage);
 
+    // 生成图片（仅保本/TP1/TP2）
     let imageUrl = null;
     if (isBreakeven(processedRaw) || isTP1(processedRaw) || isTP2(processedRaw)) {
       const symbol = getSymbol(processedRaw) || "SYMBOL";
@@ -303,7 +300,9 @@ export async function POST(req) {
       }
     }
 
+    // 并行发送（钉钉、Discord）
     const [dingtalkResult, discordResult] = await Promise.allSettled([
+      // 钉钉发送
       (async () => {
         let finalMessage = formattedMessage;
         if (imageUrl) {
@@ -339,6 +338,8 @@ export async function POST(req) {
           return { ok: true, dingTalk: data };
         }
       })(),
+
+      // Discord 发送
       sendToDiscord(formattedMessage, imageUrl)
     ]);
 
@@ -355,6 +356,7 @@ export async function POST(req) {
   }
 }
 
+// ---------- GET 健康检查 ----------
 export const dynamic = 'force-dynamic';
 export async function GET() {
   return new Response(JSON.stringify({ message: 'TradingView Webhook API is running', timestamp: new Date().toISOString() }), { status: 200, headers: { 'Content-Type': 'application/json' } });

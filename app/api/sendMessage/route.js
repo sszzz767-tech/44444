@@ -1,5 +1,5 @@
 // /app/api/tradingview/route.js
-// 最终版 —— 消息推送集成代码，为保本/TP1/TP2 自动附加图片
+// 最终版 —— 消息推送集成代码，为保本/TP1/TP2 自动附加图片，Discord 同时显示图片链接
 import { NextResponse } from "next/server";
 
 // ---------- 环境变量 ----------
@@ -89,7 +89,6 @@ function generateImageURL(params) {
   url.searchParams.set('entry', formatPriceSmart(entry));
   url.searchParams.set('price', formatPriceSmart(price));
   url.searchParams.set('capital', capital.toString());
-  // 可选：添加时间戳避免缓存，但图片路由已设缓存控制，可不加
   return url.toString();
 }
 
@@ -100,7 +99,7 @@ function formatForDingTalk(raw) {
 
   const symbol = getSymbol(text) || "SYMBOL";
   const direction = getDirection(text) || "买";
-  const symbolLine = `${symbol} ｜ ${direction === '卖' ? '空頭' : '多頭'}`; // 注意：文本中方向用“多頭/空頭”
+  const symbolLine = `${symbol} ｜ ${direction === '卖' ? '空頭' : '多頭'}`;
 
   // 提取各类价格
   const entryPrice = getNum(text, "开仓价格");
@@ -190,20 +189,23 @@ function formatForDingTalk(raw) {
   return body;
 }
 
-// ---------- 发送到 Discord（纯文本，无 embed）----------
-async function sendToDiscord(messageData) {
+// ---------- 发送到 Discord（纯文本 + 可选图片链接）----------
+async function sendToDiscord(messageData, imageUrl = null) {
   if (!SEND_TO_DISCORD || !DISCORD_WEBHOOK_URL) {
     console.log("Discord发送未启用或Webhook未配置，跳过");
     return { success: true, skipped: true };
   }
   try {
-    const payload = { content: messageData };
+    // 如果有图片，将图片 URL 附加到消息末尾
+    const content = imageUrl ? `${messageData}\n${imageUrl}` : messageData;
+    const payload = { content };
     const resp = await fetch(DISCORD_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    console.log("Discord消息发送成功");
     return { success: true };
   } catch (e) {
     console.error("Discord发送失败:", e);
@@ -211,7 +213,7 @@ async function sendToDiscord(messageData) {
   }
 }
 
-// ---------- 发送到 KOOK ----------
+// ---------- 发送到 KOOK（可选保留）----------
 async function sendToKook(messageData, rawData, messageType) {
   if (!SEND_TO_KOOK) return { success: true, skipped: true };
   try {
@@ -270,7 +272,6 @@ export async function POST(req) {
       const symbol = getSymbol(processedRaw) || "SYMBOL";
       const direction = getDirection(processedRaw) || "买";
       const entry = getNum(processedRaw, "开仓价格") || (symbol && lastEntryBySymbol[symbol]?.entry) || null;
-      // 对于保本，价格取保本位或触发价；对于 TP1/TP2，价格取对应 TP 价或最新价
       let price = null;
       if (isBreakeven(processedRaw)) {
         price = getNum(processedRaw, "保本位") || getNum(processedRaw, "触发价格") || getNum(processedRaw, "平仓价格");
@@ -279,14 +280,13 @@ export async function POST(req) {
       } else if (isTP2(processedRaw)) {
         price = getNum(processedRaw, "TP2价格") || getNum(processedRaw, "TP2");
       }
-      // 若没有特定价格，尝试用最新价格
       if (price === null) {
         price = getNum(processedRaw, "最新价格") || getNum(processedRaw, "当前价格") || getNum(processedRaw, "市价");
       }
 
       imageUrl = generateImageURL({
         symbol,
-        direction, // 自动转为买/卖
+        direction,
         entry,
         price,
         capital: DEFAULT_CAPITAL,
@@ -295,10 +295,9 @@ export async function POST(req) {
       console.log("生成的图片URL:", imageUrl);
     }
 
-    // 最终发送的消息内容：纯文本 + 图片 Markdown 链接（仅钉钉和 KOOK 支持，Discord 纯文本）
+    // 最终发送的消息内容（用于钉钉/KOOK）：纯文本 + 图片 Markdown 链接
     let finalMessage = formattedMessage;
     if (imageUrl) {
-      // 钉钉/KOOK 支持 Markdown 图片语法
       finalMessage += `\n\n![交易图表](${imageUrl})`;
     }
 
@@ -337,11 +336,11 @@ export async function POST(req) {
         }
       })(),
 
-      // KOOK 发送
+      // KOOK 发送（如果需要）
       sendToKook(finalMessage, processedRaw, messageType),
 
-      // Discord 发送（纯文本，不含图片 Markdown）
-      sendToDiscord(formattedMessage) // Discord 不发送图片 Markdown
+      // Discord 发送（纯文本 + 图片链接，不包含 Markdown 图片语法）
+      sendToDiscord(formattedMessage, imageUrl)
     ]);
 
     const results = {

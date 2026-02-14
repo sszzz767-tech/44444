@@ -135,7 +135,7 @@ function getImagePrice(rawData, entryPrice) {
 // ---------- 构建图片 URL（添加 .png 后缀）----------
 function generateImageURL(params) {
   const { symbol, direction, entry, price, capital = DEFAULT_CAPITAL } = params;
-  const url = new URL(`${IMAGE_BASE_URL}/api/card-image/image.png`);
+  const url = new URL(`${IMAGE_BASE_URL}/api/card-image`);
   url.searchParams.set('symbol', symbol || 'SOLUSDT.P');
   url.searchParams.set('direction', direction === '卖' ? '卖' : '买');
   url.searchParams.set('entry', formatPriceSmart(entry));

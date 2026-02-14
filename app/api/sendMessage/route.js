@@ -10,7 +10,8 @@ const SEND_TO_KOOK = process.env.SEND_TO_KOOK === "true";
 const SEND_TO_DISCORD = process.env.SEND_TO_DISCORD === "true";
 const DEFAULT_KOOK_CHANNEL_ID = process.env.DEFAULT_KOOK_CHANNEL_ID || "3152587560978791";
 const DEFAULT_CAPITAL = parseFloat(process.env.DEFAULT_CAPITAL || "1000");
-const IMAGE_BASE_URL = "https://aa44444.vercel.app"; // 图片服务的部署域名
+// 图片服务的部署域名（请在 Vercel 环境变量中设置）
+const IMAGE_BASE_URL = process.env.IMAGE_BASE_URL || "https://aa44444.vercel.app";
 
 const lastEntryBySymbol = Object.create(null);
 
@@ -70,6 +71,16 @@ function isEntry(t) {
   return /【开仓】/.test(t) || (/开仓价格/.test(t) && !isTP1(t) && !isTP2(t) && !isBreakeven(t) && !isBreakevenStop(t) && !isInitialStop(t));
 }
 
+function getMessageType(text) {
+  if (isTP2(text)) return "TP2";
+  if (isTP1(text)) return "TP1";
+  if (isBreakeven(text)) return "BREAKEVEN";
+  if (isBreakevenStop(text)) return "BREAKEVEN_STOP";
+  if (isInitialStop(text)) return "INITIAL_STOP";
+  if (isEntry(text)) return "ENTRY";
+  return "OTHER";
+}
+
 // ---------- 修复的图片价格获取函数（经过验证）----------
 function getImagePrice(rawData, entryPrice) {
   console.log("=== getImagePrice 详细调试 ===");
@@ -121,10 +132,10 @@ function getImagePrice(rawData, entryPrice) {
   return finalPrice;
 }
 
-// ---------- 构建图片 URL（匹配最新图片路由，添加 .png 后缀）----------
+// ---------- 构建图片 URL（添加 .png 后缀）----------
 function generateImageURL(params) {
   const { symbol, direction, entry, price, capital = DEFAULT_CAPITAL } = params;
-  const url = new URL(`${IMAGE_BASE_URL}/api/card-image/image.png`); // 添加 .png 后缀
+  const url = new URL(`${IMAGE_BASE_URL}/api/card-image/image.png`);
   url.searchParams.set('symbol', symbol || 'SOLUSDT.P');
   url.searchParams.set('direction', direction === '卖' ? '卖' : '买');
   url.searchParams.set('entry', formatPriceSmart(entry));

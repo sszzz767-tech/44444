@@ -56,9 +56,15 @@ function formatPriceSmart(value) {
   return strValue;
 }
 
-function isTP2(t) { return /TP2达成/.test(t); }
-function isTP1(t) { return /TP1达成/.test(t); }
-function isBreakeven(t) { return /已到保本位置/.test(t); }
+function isTP2(t) {
+  return /(?:^|\n)TP2达成/.test(t); // 匹配行首的“TP2达成”
+}
+function isTP1(t) {
+  return /(?:^|\n)TP1达成/.test(t); // 匹配行首的“TP1达成”
+}
+function isBreakeven(t) {
+  return /(?:^|\n)已到保本位置/.test(t); // 匹配行首的“已到保本位置”
+}
 function isBreakevenStop(t) { return /保本止损.*触发/.test(t); }
 function isInitialStop(t) { return /初始止损.*触发/.test(t); }
 function isEntry(t) {

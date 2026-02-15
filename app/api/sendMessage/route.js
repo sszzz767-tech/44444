@@ -129,7 +129,7 @@ function getImagePrice(rawData, entryPrice) {
 // ---------- 构建图片 URL（方向使用英文，避免中文字符）----------
 function generateImageURL(params) {
   const { symbol, direction, entry, price, capital = DEFAULT_CAPITAL } = params;
-  const url = new URL(`${IMAGE_BASE_URL}/api/card-image`);
+  const url = new URL(`${IMAGE_BASE_URL}/api/card-image/image.png`);
   url.searchParams.set('symbol', symbol || 'SOLUSDT.P');
   // 将中文方向转换为英文（buy/sell）
   const dirParam = direction === '卖' ? 'sell' : 'buy';

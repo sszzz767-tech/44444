@@ -126,17 +126,18 @@ function getImagePrice(rawData, entryPrice) {
   return finalPrice;
 }
 
-// ---------- 构建图片 URL（旧链路，添加防缓存参数）----------
+// ---------- 构建图片 URL（方向使用英文，避免中文字符）----------
 function generateImageURL(params) {
   const { symbol, direction, entry, price, capital = DEFAULT_CAPITAL } = params;
   const url = new URL(`${IMAGE_BASE_URL}/api/card-image`);
   url.searchParams.set('symbol', symbol || 'SOLUSDT.P');
-  url.searchParams.set('direction', direction === '卖' ? '卖' : '买');
+  // 将中文方向转换为英文（buy/sell）
+  const dirParam = direction === '卖' ? 'sell' : 'buy';
+  url.searchParams.set('direction', dirParam);
   url.searchParams.set('entry', formatPriceSmart(entry));
   url.searchParams.set('price', formatPriceSmart(price));
   url.searchParams.set('capital', capital.toString());
-  // 添加时间戳防缓存（与 Discord 中的防缓存配合）
-  url.searchParams.set('_t', Date.now().toString());
+  url.searchParams.set('_t', Date.now().toString()); // 防缓存
   return url.toString();
 }
 
@@ -214,7 +215,7 @@ function formatForDingTalk(raw) {
   return body;
 }
 
-// ---------- 发送到 Discord（恢复旧版结构，无彩色，防缓存）----------
+// ---------- 发送到 Discord（恢复旧版完整 embed 结构，无彩色）----------
 async function sendToDiscord(messageData, imageUrl = null) {
   if (!SEND_TO_DISCORD || !DISCORD_WEBHOOK_URL) {
     console.log("Discord发送未启用或Webhook未配置，跳过");
@@ -222,25 +223,23 @@ async function sendToDiscord(messageData, imageUrl = null) {
   }
 
   try {
-    console.log("=== 开始发送到Discord（恢复旧版结构，无彩色） ===");
+    console.log("=== 开始发送到Discord（完整 embed，无彩色） ===");
 
-    // 构建与旧代码一致的 embed 结构，但颜色设为 null，标题/页脚用空格
     const embed = {
-      title: " ",                     // 空格，确保不为空
+      title: " ",                     // 空格，确保 embed 非空
       description: messageData,
       color: null,                    // 无色
       timestamp: new Date().toISOString(),
-      footer: { text: " " },          // 空格
+      footer: { text: " " },
     };
 
     if (imageUrl) {
-      // 添加防缓存参数
-      const separator = imageUrl.includes('?') ? '&' : '?';
-      embed.image = { url: `${imageUrl}${separator}_t=${Date.now()}` };
+      // 添加防缓存参数（但图片 URL 已自带 _t）
+      embed.image = { url: imageUrl };
     }
 
     const discordPayload = {
-      embeds: [embed]                  // 只发送 embed，无 content
+      embeds: [embed]
     };
 
     const response = await fetch(DISCORD_WEBHOOK_URL, {
@@ -353,7 +352,7 @@ export async function POST(req) {
         }
       })(),
 
-      // Discord 发送（恢复旧版结构）
+      // Discord 发送
       sendToDiscord(formattedMessage, imageUrl)
     ]);
 

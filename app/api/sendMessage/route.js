@@ -9,7 +9,6 @@ const SEND_TO_DISCORD = process.env.SEND_TO_DISCORD === "true";
 const DEFAULT_CAPITAL = parseFloat(process.env.DEFAULT_CAPITAL || "1000");
 const IMAGE_BASE_URL = process.env.IMAGE_BASE_URL || "https://aa44444.vercel.app";
 
-// 用于临时存储开仓价格（按交易对）
 const lastEntryBySymbol = Object.create(null);
 
 // ---------- 辅助解析函数 ----------
@@ -58,10 +57,10 @@ function formatPriceSmart(value) {
   return strValue;
 }
 
-// ---------- 消息类型判断（严格模式）----------
-function isTP2(t) { return /(?:^|\n)TP2达成/.test(t); }
-function isTP1(t) { return /(?:^|\n)TP1达成/.test(t); }
-function isBreakeven(t) { return /(?:^|\n)已到保本位置/.test(t); }
+// ---------- 消息类型判断（放宽，使用单词边界）----------
+function isTP2(t) { return /\bTP2达成\b/.test(t); }
+function isTP1(t) { return /\bTP1达成\b/.test(t); }
+function isBreakeven(t) { return /\b已到保本位置\b/.test(t); }
 function isBreakevenStop(t) { return /保本止损.*触发/.test(t); }
 function isInitialStop(t) { return /初始止损.*触发/.test(t); }
 function isEntry(t) {
@@ -207,7 +206,7 @@ function formatForDingTalk(raw) {
   return body;
 }
 
-// ---------- 发送到 Discord（纯 embed 模式，文本 + 图片，无彩色）----------
+// ---------- 发送到 Discord（纯 embed 模式，所有消息均以卡片形式发送）----------
 async function sendToDiscord(messageData, imageUrl = null) {
   if (!SEND_TO_DISCORD || !DISCORD_WEBHOOK_URL) {
     console.log("Discord发送未启用或Webhook未配置，跳过");
@@ -341,7 +340,7 @@ export async function POST(req) {
         }
       })(),
 
-      // Discord 发送（纯 embed）
+      // Discord 发送（纯 embed，所有消息都用卡片）
       sendToDiscord(formattedMessage, imageUrl)
     ]);
 

@@ -74,9 +74,7 @@ function isInitialStop(t) {
   return t.includes("初始止损触发") || t.includes("止损触发") || t.includes("止損觸發");
 }
 function isEntry(t) {
-  // 开仓信号（TradingView 中明确包含“开仓信号”）
   if (t.includes("开仓信号")) return true;
-  // 如果没有“开仓信号”，但有“开仓价格”且不是其他事件，则也视为开仓
   return t.includes("开仓价格") && !isTP1(t) && !isTP2(t) && !isBreakeven(t) && !isBreakevenStop(t) && !isInitialStop(t);
 }
 
@@ -154,7 +152,6 @@ function formatForDingTalk(raw) {
   const direction = getDirection(text) || "买";
   const symbolLine = `${symbol} ｜ ${direction === '卖' ? '空頭' : '多頭'}`;
 
-  // 提取各类价格，支持多种关键词
   const entryPrice = getNum(text, "开仓价格");
   const stopPrice = getNum(text, "止损价格") || getNum(text, "止损") || getNum(text, "风险") || getNum(text, "風險");
   const breakevenPrice = getNum(text, "保本位") || getNum(text, "保护") || getNum(text, "保護") || getNum(text, "保本");
@@ -220,7 +217,7 @@ function formatForDingTalk(raw) {
   return body;
 }
 
-// ---------- 发送到 Discord（纯 embed 模式，无时间戳）----------
+// ---------- 发送到 Discord（纯 embed 模式，无时间戳，防缓存）----------
 async function sendToDiscord(messageData, imageUrl = null) {
   if (!SEND_TO_DISCORD || !DISCORD_WEBHOOK_URL) {
     console.log("Discord发送未启用或Webhook未配置，跳过");
@@ -228,22 +225,23 @@ async function sendToDiscord(messageData, imageUrl = null) {
   }
 
   try {
-    console.log("=== 开始发送到Discord（纯 embed 模式，无时间戳） ===");
+    console.log("=== 开始发送到Discord（纯 embed 模式，无时间戳，防缓存） ===");
     
     const embed = {
-      title: "\u200B",                // 零宽空格，不可见
-      description: messageData,       // 精简文本
-      color: null,                    // 无色
-      footer: { text: "\u200B" },     // 零宽空格
-      // timestamp 已删除，卡片底部无时间
+      title: "\u200B",
+      description: messageData,
+      color: null,
+      footer: { text: "\u200B" },
     };
 
     if (imageUrl) {
-      embed.image = { url: imageUrl };
+      // 添加时间戳参数避免缓存
+      const separator = imageUrl.includes('?') ? '&' : '?';
+      embed.image = { url: `${imageUrl}${separator}_t=${Date.now()}` };
     }
 
     const discordPayload = {
-      embeds: [embed]                  // 只发送 embed，无 content
+      embeds: [embed]
     };
 
     const response = await fetch(DISCORD_WEBHOOK_URL, {
@@ -356,7 +354,7 @@ export async function POST(req) {
         }
       })(),
 
-      // Discord 发送（纯 embed）
+      // Discord 发送
       sendToDiscord(formattedMessage, imageUrl)
     ]);
 

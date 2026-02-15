@@ -57,32 +57,27 @@ function formatPriceSmart(value) {
   return strValue;
 }
 
-// ---------- 消息类型判断（针对 TradingView 警报格式）----------
+// ---------- 消息类型判断（使用 includes 避免中文边界问题）----------
 function isTP2(t) {
-  return /\bTP2达成\b/.test(t) || /\bTP2\s*达成\b/.test(t);
+  return t.includes("TP2达成");
 }
-
 function isTP1(t) {
-  return /\bTP1达成\b/.test(t) || /\bTP1\s*达成\b/.test(t);
+  return t.includes("TP1达成");
 }
-
 function isBreakeven(t) {
-  return /\b已到保本位置\b/.test(t) || /\b保本触发\b/.test(t) || /\b保护位生效\b/.test(t) || /\b保本位置\b/.test(t);
+  return t.includes("已到保本位置") || t.includes("保本触发") || t.includes("保护位生效") || t.includes("保本位置");
 }
-
 function isBreakevenStop(t) {
-  return /\b保本止损触发\b/.test(t) || /\b保护触发\b/.test(t) || /\b保護觸發\b/.test(t);
+  return t.includes("保本止损触发") || t.includes("保护触发") || t.includes("保護觸發");
 }
-
 function isInitialStop(t) {
-  return /\b初始止损触发\b/.test(t) || /\b止损触发\b/.test(t) || /\b止損觸發\b/.test(t);
+  return t.includes("初始止损触发") || t.includes("止损触发") || t.includes("止損觸發");
 }
-
 function isEntry(t) {
   // 开仓信号（TradingView 中明确包含“开仓信号”）
-  if (/\b开仓信号\b/.test(t)) return true;
+  if (t.includes("开仓信号")) return true;
   // 如果没有“开仓信号”，但有“开仓价格”且不是其他事件，则也视为开仓
-  return /开仓价格/.test(t) && !isTP1(t) && !isTP2(t) && !isBreakeven(t) && !isBreakevenStop(t) && !isInitialStop(t);
+  return t.includes("开仓价格") && !isTP1(t) && !isTP2(t) && !isBreakeven(t) && !isBreakevenStop(t) && !isInitialStop(t);
 }
 
 function getMessageType(text) {
@@ -288,7 +283,6 @@ export async function POST(req) {
     const processedRaw = String(raw).replace(/\\u[\dA-Fa-f]{4}/g, '').replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
       .replace(/[^\x00-\x7F\u4e00-\u9fa5\s]/g, '').replace(/\s+/g, ' ').trim();
 
-    // 输出原始消息内容，便于调试
     console.log("原始消息内容:", processedRaw);
 
     if (!processedRaw || !/(品种|方向|开仓|止损|TP1|TP2|保本|盈利|胜率|交易次数)/.test(processedRaw)) {

@@ -57,14 +57,17 @@ function formatPriceSmart(value) {
   return strValue;
 }
 
-// ---------- 消息类型判断（放宽，使用单词边界）----------
-function isTP2(t) { return /\bTP2达成\b/.test(t); }
-function isTP1(t) { return /\bTP1达成\b/.test(t); }
-function isBreakeven(t) { return /\b已到保本位置\b/.test(t); }
-function isBreakevenStop(t) { return /保本止损.*触发/.test(t); }
-function isInitialStop(t) { return /初始止损.*触发/.test(t); }
+// ---------- 消息类型判断（放宽并优先特殊事件）----------
+function isTP2(t) { return /\bTP2达成\b/.test(t) || /\bTP2\s*达成\b/.test(t); }
+function isTP1(t) { return /\bTP1达成\b/.test(t) || /\bTP1\s*达成\b/.test(t); }
+function isBreakeven(t) { 
+  return /\b已到保本位置\b/.test(t) || /\b保本触发\b/.test(t) || /\b保护位生效\b/.test(t) || /\b保本位置\b/.test(t);
+}
+function isBreakevenStop(t) { return /保本止损.*触发/.test(t) || /保护触发/.test(t) || /保護觸發/.test(t); }
+function isInitialStop(t) { return /初始止损.*触发/.test(t) || /止损触发/.test(t) || /止損觸發/.test(t); }
 function isEntry(t) {
-  return /【开仓】/.test(t) || (/开仓价格/.test(t) && !isTP1(t) && !isTP2(t) && !isBreakeven(t) && !isBreakevenStop(t) && !isInitialStop(t));
+  // 确保不是其他类型才判断为开仓
+  return (/【开仓】/.test(t) || /开仓价格/.test(t)) && !isTP1(t) && !isTP2(t) && !isBreakeven(t) && !isBreakevenStop(t) && !isInitialStop(t);
 }
 
 function getMessageType(text) {

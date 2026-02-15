@@ -220,14 +220,22 @@ async function sendToDiscord(messageData, imageUrl = null) {
   }
 
   try {
-    console.log("=== 开始发送到Discord（纯 embed 模式） ===");
+// ---------- 发送到 Discord（纯 embed 模式，无时间戳）----------
+async function sendToDiscord(messageData, imageUrl = null) {
+  if (!SEND_TO_DISCORD || !DISCORD_WEBHOOK_URL) {
+    console.log("Discord发送未启用或Webhook未配置，跳过");
+    return { success: true, skipped: true };
+  }
+
+  try {
+    console.log("=== 开始发送到Discord（纯 embed 模式，无时间戳） ===");
     
     const embed = {
       title: "\u200B",                // 零宽空格，不可见
       description: messageData,       // 精简文本
       color: null,                    // 无色
-      timestamp: new Date().toISOString(),
       footer: { text: "\u200B" },     // 零宽空格
+      // timestamp 字段已删除，卡片底部将不再显示时间
     };
 
     if (imageUrl) {

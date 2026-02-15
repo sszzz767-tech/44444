@@ -132,7 +132,7 @@ function generateImageURL(params) {
   return url.toString();
 }
 
-// ---------- 精简版消息格式化（无头部、无时间戳、无盈利百分比）----------
+// ---------- 精简版消息格式化（增强字段提取）----------
 function formatForDingTalk(raw) {
   const text = String(raw || "").replace(/\\u[\dA-Fa-f]{4}/g, '').replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
     .replace(/[^\x00-\x7F\u4e00-\u9fa5\s]/g, '').replace(/\s+/g, ' ').trim();
@@ -141,11 +141,17 @@ function formatForDingTalk(raw) {
   const direction = getDirection(text) || "买";
   const symbolLine = `${symbol} ｜ ${direction === '卖' ? '空頭' : '多頭'}`;
 
+  // 提取各类价格，支持多种关键词
   const entryPrice = getNum(text, "开仓价格");
-  const stopPrice = getNum(text, "止损价格");
-  const breakevenPrice = getNum(text, "保本位");
-  const tp1Price = getNum(text, "TP1");
-  const tp2Price = getNum(text, "TP2");
+
+  // 止损价格：尝试多个关键词
+  const stopPrice = getNum(text, "止损价格") || getNum(text, "止损") || getNum(text, "风险") || getNum(text, "風險");
+
+  // 保本位：尝试多个关键词
+  const breakevenPrice = getNum(text, "保本位") || getNum(text, "保护") || getNum(text, "保護") || getNum(text, "保本");
+
+  const tp1Price = getNum(text, "TP1") || getNum(text, "TP1价格");
+  const tp2Price = getNum(text, "TP2") || getNum(text, "TP2价格");
   const triggerPrice = getNum(text, "触发价格") || getNum(text, "平仓价格");
 
   if (isEntry(text) && symbol && entryPrice != null) {
@@ -340,7 +346,7 @@ export async function POST(req) {
         }
       })(),
 
-      // Discord 发送（纯 embed，所有消息都用卡片）
+      // Discord 发送（纯 embed）
       sendToDiscord(formattedMessage, imageUrl)
     ]);
 

@@ -41,7 +41,6 @@ function getLatestPrice(text) {
   return getNum(text, "最新价格") || getNum(text, "当前价格") || getNum(text, "市价");
 }
 
-// ---------- 格式化价格（保留原始精度，最多5位）----------
 function formatPriceSmart(value) {
   if (value === null || value === undefined) return "-";
   if (typeof value === 'string') {
@@ -57,13 +56,9 @@ function formatPriceSmart(value) {
   return strValue;
 }
 
-// ---------- 消息类型判断（使用 includes 避免中文边界问题）----------
-function isTP2(t) {
-  return t.includes("TP2达成");
-}
-function isTP1(t) {
-  return t.includes("TP1达成");
-}
+// ---------- 消息类型判断（使用 includes）----------
+function isTP2(t) { return t.includes("TP2达成"); }
+function isTP1(t) { return t.includes("TP1达成"); }
 function isBreakeven(t) {
   return t.includes("已到保本位置") || t.includes("保本触发") || t.includes("保护位生效") || t.includes("保本位置");
 }
@@ -131,7 +126,7 @@ function getImagePrice(rawData, entryPrice) {
   return finalPrice;
 }
 
-// ---------- 构建图片 URL（旧链路，无后缀）----------
+// ---------- 构建图片 URL（旧链路，无后缀，添加防缓存参数）----------
 function generateImageURL(params) {
   const { symbol, direction, entry, price, capital = DEFAULT_CAPITAL } = params;
   const url = new URL(`${IMAGE_BASE_URL}/api/card-image`);
@@ -140,6 +135,8 @@ function generateImageURL(params) {
   url.searchParams.set('entry', formatPriceSmart(entry));
   url.searchParams.set('price', formatPriceSmart(price));
   url.searchParams.set('capital', capital.toString());
+  // 添加时间戳防缓存（但 Discord 的 embed 可能仍会缓存，我们在 sendToDiscord 中再加一次）
+  url.searchParams.set('_t', Date.now().toString());
   return url.toString();
 }
 
@@ -217,7 +214,7 @@ function formatForDingTalk(raw) {
   return body;
 }
 
-// ---------- 发送到 Discord（纯 embed 模式，无时间戳，防缓存）----------
+// ---------- 发送到 Discord（完整 embed 结构，无彩色，防缓存）----------
 async function sendToDiscord(messageData, imageUrl = null) {
   if (!SEND_TO_DISCORD || !DISCORD_WEBHOOK_URL) {
     console.log("Discord发送未启用或Webhook未配置，跳过");
@@ -225,17 +222,19 @@ async function sendToDiscord(messageData, imageUrl = null) {
   }
 
   try {
-    console.log("=== 开始发送到Discord（纯 embed 模式，无时间戳，防缓存） ===");
-    
+    console.log("=== 开始发送到Discord（完整 embed，无彩色，防缓存） ===");
+
+    // 构建完整 embed 结构（参考旧代码）
     const embed = {
-      title: "\u200B",
-      description: messageData,
-      color: null,
-      footer: { text: "\u200B" },
+      title: "\u200B",                // 零宽空格，不可见
+      description: messageData,       // 精简文本
+      color: null,                    // 无色
+      timestamp: new Date().toISOString(),
+      footer: { text: "\u200B" },     // 零宽空格
     };
 
+    // 如果有图片，添加图片字段，并附加时间戳防缓存
     if (imageUrl) {
-      // 添加时间戳参数避免缓存
       const separator = imageUrl.includes('?') ? '&' : '?';
       embed.image = { url: `${imageUrl}${separator}_t=${Date.now()}` };
     }
@@ -354,7 +353,7 @@ export async function POST(req) {
         }
       })(),
 
-      // Discord 发送
+      // Discord 发送（完整 embed）
       sendToDiscord(formattedMessage, imageUrl)
     ]);
 

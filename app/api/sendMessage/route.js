@@ -229,8 +229,7 @@ async function sendToDiscord(messageData, imageUrl = null) {
     const embed = {
       title: " ",                     // 空格占位，与旧代码的标题对应但不可见
       description: messageData,       // 精简文本
-      color: null,                    // 无色（旧代码有颜色，我们设为null）
-      timestamp: new Date().toISOString(),
+      color: null,                    // 无色（旧代码有颜色，我们设为null） 
       footer: { text: " " },          // 空格占位
     };
 

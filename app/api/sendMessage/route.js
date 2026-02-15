@@ -212,14 +212,6 @@ function formatForDingTalk(raw) {
   return body;
 }
 
-// ---------- 发送到 Discord（纯 embed 模式，所有消息均以卡片形式发送）----------
-async function sendToDiscord(messageData, imageUrl = null) {
-  if (!SEND_TO_DISCORD || !DISCORD_WEBHOOK_URL) {
-    console.log("Discord发送未启用或Webhook未配置，跳过");
-    return { success: true, skipped: true };
-  }
-
-  try {
 // ---------- 发送到 Discord（纯 embed 模式，无时间戳）----------
 async function sendToDiscord(messageData, imageUrl = null) {
   if (!SEND_TO_DISCORD || !DISCORD_WEBHOOK_URL) {
@@ -235,7 +227,7 @@ async function sendToDiscord(messageData, imageUrl = null) {
       description: messageData,       // 精简文本
       color: null,                    // 无色
       footer: { text: "\u200B" },     // 零宽空格
-      // timestamp 字段已删除，卡片底部将不再显示时间
+      // timestamp 已删除，卡片底部无时间
     };
 
     if (imageUrl) {

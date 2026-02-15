@@ -215,7 +215,7 @@ function formatForDingTalk(raw) {
   return body;
 }
 
-// ---------- 发送到 Discord（恢复旧版完整 embed 结构，无彩色）----------
+// ---------- 发送到 Discord（完全仿照旧代码结构，无彩色）----------
 async function sendToDiscord(messageData, imageUrl = null) {
   if (!SEND_TO_DISCORD || !DISCORD_WEBHOOK_URL) {
     console.log("Discord发送未启用或Webhook未配置，跳过");
@@ -223,21 +223,23 @@ async function sendToDiscord(messageData, imageUrl = null) {
   }
 
   try {
-    console.log("=== 开始发送到Discord（完整 embed，无彩色） ===");
+    console.log("=== 开始发送到Discord（完全仿照旧代码结构） ===");
 
+    // 构建与旧代码完全相同的 embed 结构
     const embed = {
-      title: " ",                     // 空格，确保 embed 非空
-      description: messageData,
-      color: null,                    // 无色
+      title: " ",                     // 空格占位，与旧代码的标题对应但不可见
+      description: messageData,       // 精简文本
+      color: null,                    // 无色（旧代码有颜色，我们设为null）
       timestamp: new Date().toISOString(),
-      footer: { text: " " },
+      footer: { text: " " },          // 空格占位
     };
 
     if (imageUrl) {
-      // 添加防缓存参数（但图片 URL 已自带 _t）
+      // 直接使用传入的图片URL（已在生成时添加 _t 防缓存）
       embed.image = { url: imageUrl };
     }
 
+    // 旧代码中还有 content 字段，我们省略它以保持干净
     const discordPayload = {
       embeds: [embed]
     };
@@ -261,6 +263,7 @@ async function sendToDiscord(messageData, imageUrl = null) {
     return { success: false, error: error.message, skipped: false };
   }
 }
+
 
 // ---------- POST 入口 ----------
 export async function POST(req) {

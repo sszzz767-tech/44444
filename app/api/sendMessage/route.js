@@ -126,19 +126,60 @@ function getImagePrice(rawData, entryPrice) {
   return finalPrice;
 }
 
-// ---------- 构建图片 URL（方向使用英文，避免中文字符）----------
+// ---------- 构建 Cloudinary 图片 URL（替代本地生成）----------
 function generateImageURL(params) {
   const { symbol, direction, entry, price, capital = DEFAULT_CAPITAL } = params;
-  const url = new URL(`${IMAGE_BASE_URL}/api/card-image/image.png`);
-  url.searchParams.set('symbol', symbol || 'SOLUSDT.P');
-  // 将中文方向转换为英文（buy/sell）
-  const dirParam = direction === '卖' ? 'sell' : 'buy';
-  url.searchParams.set('direction', dirParam);
-  url.searchParams.set('entry', formatPriceSmart(entry));
-  url.searchParams.set('price', formatPriceSmart(price));
-  url.searchParams.set('capital', capital.toString());
-  url.searchParams.set('_t', Date.now().toString()); // 防缓存
-  return url.toString();
+  
+  // 1. 从环境变量或直接指定您的 Cloudinary 配置
+  const CLOUD_NAME = 'dtbc3aa1o';  // 替换为步骤2记下的值
+  const BASE_IMAGE_ID = 'NEW1_bh9ysa';  // 替换为步骤4记下的Public ID
+  
+  // 2. 计算盈利金额（复用您现有的逻辑）
+  const entryNum = parseFloat(entry);
+  const priceNum = parseFloat(price);
+  let profitAmount = 0;
+  
+  if (!isNaN(entryNum) && !isNaN(priceNum)) {
+    if (direction === '卖') {
+      profitAmount = DEFAULT_CAPITAL * 30 * ((entryNum - priceNum) / entryNum);
+    } else {
+      profitAmount = DEFAULT_CAPITAL * 30 * ((priceNum - entryNum) / entryNum);
+    }
+  }
+  const displayProfit = (profitAmount > 0 ? '+' : '') + profitAmount.toFixed(2);
+  
+  // 3. 方向显示（买/卖）
+  const displayDirection = direction === '卖' ? '卖' : '买';
+  
+  // 4. 构建文字叠加参数（需要根据您的底图精确调整坐标）
+  //    以下坐标是基于您之前950x1300尺寸的估算值，您可能需要微调
+  const textLayers = [
+    // 时间（右上角）- 可选，如果您想在图片上显示时间
+    // `l_text:Arial_33:${encodeURIComponent(new Date().toLocaleString('zh-CN'))},co_F0F0F0,g_north_east,x_420,y_145`,
+    
+    // 交易对（左上）
+    `l_text:Arial_47_bold:${encodeURIComponent(symbol.replace('.P', '') + ' 永续')},co_F0F0F0,g_north_west,x_50,y_395`,
+    
+    // 方向（买/卖）- 放在30x左侧
+    `l_text:Arial_35_bold:${encodeURIComponent(displayDirection)},co_${displayDirection === '卖' ? 'cc3333' : '35B97C'},g_north_west,x_53,y_475`,
+    
+    // 盈利金额（大字）
+    `l_text:Arial_85_bold:${encodeURIComponent(displayProfit)},co_${profitAmount >= 0 ? '35B97C' : 'cc3333'},g_north_west,x_40,y_585`,
+    
+    // USDT 字样
+    `l_text:Arial_50_bold:USDT,co_F0F0F0,g_north_west,x_280,y_585`,
+    
+    // 开仓价格
+    `l_text:Arial_35:${encodeURIComponent(entry)},co_F0F0F0,g_south_west,x_60,y_430`,
+    
+    // 最新价格
+    `l_text:Arial_35:${encodeURIComponent(price)},co_F0F0F0,g_south_east,x_505,y_430`
+  ];
+  
+  // 5. 将所有文字层用斜杠连接，附加到底图上
+  const cloudinaryUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${textLayers.join('/')}/${BASE_IMAGE_ID}.png`;
+  
+  return cloudinaryUrl;
 }
 
 // ---------- 精简版消息格式化（增强字段提取）----------

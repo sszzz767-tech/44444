@@ -126,7 +126,7 @@ function getImagePrice(rawData, entryPrice) {
   return finalPrice;
 }
 
-// ---------- 构建 Cloudinary 图片 URL（最终稳定版，支持买/卖）----------
+// ---------- 构建 Cloudinary 图片 URL（最终版，USDT 自动跟随）----------
 function generateImageURL(params) {
   const { symbol, direction, entry, price, capital = DEFAULT_CAPITAL } = params;
 
@@ -145,44 +145,69 @@ function generateImageURL(params) {
       profitAmount = DEFAULT_CAPITAL * 30 * ((priceNum - entryNum) / entryNum);
     }
   }
-  // 格式化盈利数字，确保带符号（+/-）和两位小数
   const displayProfit = (profitAmount > 0 ? '+' : '') + profitAmount.toFixed(2);
   const profitColor = profitAmount >= 0 ? '35b97c' : 'cc3333'; // 正绿负红
 
   // --- 3. 方向相关设置 ---
   const isSell = direction === '卖';
   const directionText = isSell ? '卖' : '买';
-  const directionColor = isSell ? 'cc3333' : '35b97c'; // 卖红买绿
+  const directionColor = isSell ? 'cc3333' : '35b97c';
 
-  // --- 4. 动态计算 USDT 的 X 坐标（基于盈利数字长度）---
-  const profitXStart = 40; // 盈利数字的起始 X
-  const profitCharWidth = 45; // 每个字符的估算宽度（85px 字体，含间距）
+  // --- 4. 动态计算 USDT 的 X 坐标 ---
+  const profitXStart = 40;                // 盈利数字起始 X
+  const profitCharWidth = 45;              // 每个字符估算宽度（85px 字体）
   const profitStrWidth = displayProfit.length * profitCharWidth;
-  const usdtX = profitXStart + profitStrWidth + 20; // 增加 20px 间距
-  // 防止 USDT 超出图片右侧，加个上限（图片宽度 950，留点边距）
-  const maxUsdtX = 750; 
+  const usdtX = profitXStart + profitStrWidth + 20; // +20 固定间距
+  const maxUsdtX = 750;                     // 图片宽度 950，留右边距
   const finalUsdtX = Math.min(usdtX, maxUsdtX);
 
-  // --- 5. 构建文字图层数组（参数基于你调试好的坐标）---
-  const textLayers = [
-    // 交易对 (g_north_west, x50, y400) - 使用粗体白字
-    `l_text:arial_47_bold:${encodeURIComponent(symbol.replace('.P', '') + ' 永续')},co_f0f0f0,g_north_west,x_50,y_400`,
+  // --- 5. 获取当前时间（北京时间，格式 YYYY-MM-DD HH:mm:ss）---
+  const now = new Date();
+  const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const year = beijingTime.getUTCFullYear();
+  const month = String(beijingTime.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(beijingTime.getUTCDate()).padStart(2, '0');
+  const hours = String(beijingTime.getUTCHours()).padStart(2, '0');
+  const minutes = String(beijingTime.getUTCMinutes()).padStart(2, '0');
+  const seconds = String(beijingTime.getUTCSeconds()).padStart(2, '0');
+  const displayTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
-    // 方向 (g_north_west, x56, y480) - 动态颜色
-    `l_text:arial_35_bold:${encodeURIComponent(directionText)},co_${directionColor},g_north_west,x_56,y_480`,
+  // --- 6. 构建完整 URL（逐层拼接）---
+  let url = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/`;
 
-    // 盈利金额 (g_north_west, x40, y590) - 动态颜色，Open Sans 95
-    `l_text:open%20sans_95_bold:${encodeURIComponent(displayProfit)},co_${profitColor},g_north_west,x_40,y_590`,
+  // 时间图层
+  url += `co_rgb:FFFFFF,l_text:arial_33_normal_left:${encodeURIComponent(displayTime)}`;
+  url += `/fl_layer_apply,g_north_west,x_180,y_150/`;
 
-    // USDT (g_north_west, y590) - 动态 X 坐标
-    `l_text:arial_50_bold:USDT,co_f0f0f0,g_north_west,x_${finalUsdtX},y_590`,
+  // 交易对图层
+  url += `co_rgb:f0f0f0,l_text:arial_47_bold_normal_left:${encodeURIComponent(symbol.replace('.P', '') + ' 永续')}`;
+  url += `/fl_layer_apply,g_north_west,x_50,y_400/`;
 
-    // 开仓价格 (g_north_west, x60, y830) - 细体白字
-    `l_text:arial_35:${encodeURIComponent(entry)},co_f0f0f0,g_north_west,x_60,y_830`,
+  // 方向图层
+  url += `co_rgb:${directionColor},l_text:arial_35_bold_normal_left:${encodeURIComponent(directionText)}`;
+  url += `/fl_layer_apply,g_north_west,x_56,y_480/`;
 
-    // 最新价格 (g_north_west, x505, y830) - 细体白字
-    `l_text:arial_36:${encodeURIComponent(price)},co_f0f0f0,g_north_west,x_505,y_830`
-  ];
+  // 盈利金额图层
+  url += `co_rgb:${profitColor},l_text:open%20sans_95_bold_normal_left:${encodeURIComponent(displayProfit)}`;
+  url += `/fl_layer_apply,g_north_west,x_40,y_590/`;
+
+  // USDT 图层（动态 X 坐标）
+  url += `co_rgb:f0f0f0,l_text:arial_50_bold_normal_left:USDT`;
+  url += `/fl_layer_apply,g_north_west,x_${finalUsdtX},y_625/`;
+
+  // 开仓价格图层
+  url += `co_rgb:f0f0f0,l_text:arial_35_bold_normal_left:${encodeURIComponent(entry)}`;
+  url += `/fl_layer_apply,g_north_west,x_60,y_830/`;
+
+  // 最新价格图层
+  url += `co_rgb:f0f0f0,l_text:arial_36_bold_normal_left:${encodeURIComponent(price)}`;
+  url += `/fl_layer_apply,g_north_west,x_505,y_830/`;
+
+  // 底图（添加 .png 后缀）
+  url += BASE_IMAGE_ID + '.png';
+
+  return url;
+}
 
   // --- 6. 将所有图层用正确的语法拼接 ---
   // Cloudinary 的正确语法是：每个图层后跟 /fl_layer_apply,gravity,x,y

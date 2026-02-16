@@ -209,23 +209,6 @@ function generateImageURL(params) {
   return url;
 }
 
-  // --- 6. 将所有图层用正确的语法拼接 ---
-  // Cloudinary 的正确语法是：每个图层后跟 /fl_layer_apply,gravity,x,y
-  // 但 URL Generator 生成的是另一种风格，这里采用最兼容的手动拼接
-  let url = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/`;
-  // 添加所有文字图层
-  textLayers.forEach(layer => {
-    url += layer + '/fl_layer_apply/';
-  });
-  // 添加底图
-  url += BASE_IMAGE_ID + '.png';
-
-  // 7. 可选：添加时间戳防缓存（但 Cloudinary 本身有缓存机制）
-  // url += `?_t=${Date.now()}`;
-
-  return url;
-}
-
 // ---------- 精简版消息格式化（增强字段提取）----------
 function formatForDingTalk(raw) {
   const text = String(raw || "").replace(/\\u[\dA-Fa-f]{4}/g, '').replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
@@ -310,20 +293,17 @@ async function sendToDiscord(messageData, imageUrl = null) {
   try {
     console.log("=== 开始发送到Discord（完全仿照旧代码结构） ===");
 
-    // 构建与旧代码完全相同的 embed 结构
     const embed = {
-      title: " ",                     // 空格占位，与旧代码的标题对应但不可见
-      description: messageData,       // 精简文本
-      color: null,                    // 无色（旧代码有颜色，我们设为null） 
-      footer: { text: " " },          // 空格占位
+      title: " ",
+      description: messageData,
+      color: null,
+      footer: { text: " " },
     };
 
     if (imageUrl) {
-      // 直接使用传入的图片URL（已在生成时添加 _t 防缓存）
       embed.image = { url: imageUrl };
     }
 
-    // 旧代码中还有 content 字段，我们省略它以保持干净
     const discordPayload = {
       embeds: [embed]
     };
@@ -347,7 +327,6 @@ async function sendToDiscord(messageData, imageUrl = null) {
     return { success: false, error: error.message, skipped: false };
   }
 }
-
 
 // ---------- POST 入口 ----------
 export async function POST(req) {

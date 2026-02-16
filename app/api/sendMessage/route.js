@@ -126,19 +126,18 @@ function getImagePrice(rawData, entryPrice) {
   return finalPrice;
 }
 
-// ---------- 构建 Cloudinary 图片 URL（替代本地生成）----------
+// ---------- 构建 Cloudinary 图片 URL（最终稳定版，支持买/卖）----------
 function generateImageURL(params) {
   const { symbol, direction, entry, price, capital = DEFAULT_CAPITAL } = params;
-  
-  // 1. 从环境变量或直接指定您的 Cloudinary 配置
-  const CLOUD_NAME = 'dtbc3aa1o';  // 替换为步骤2记下的值
-  const BASE_IMAGE_ID = 'NEW1_bh9ysa';  // 替换为步骤4记下的Public ID
-  
-  // 2. 计算盈利金额（复用您现有的逻辑）
+
+  // --- 1. 基础配置 ---
+  const CLOUD_NAME = 'dtbc3aa1o';
+  const BASE_IMAGE_ID = 'NEW1_bh9ysa';
+
+  // --- 2. 计算盈利金额 ---
   const entryNum = parseFloat(entry);
   const priceNum = parseFloat(price);
   let profitAmount = 0;
-  
   if (!isNaN(entryNum) && !isNaN(priceNum)) {
     if (direction === '卖') {
       profitAmount = DEFAULT_CAPITAL * 30 * ((entryNum - priceNum) / entryNum);
@@ -146,40 +145,60 @@ function generateImageURL(params) {
       profitAmount = DEFAULT_CAPITAL * 30 * ((priceNum - entryNum) / entryNum);
     }
   }
+  // 格式化盈利数字，确保带符号（+/-）和两位小数
   const displayProfit = (profitAmount > 0 ? '+' : '') + profitAmount.toFixed(2);
-  
-  // 3. 方向显示（买/卖）
-  const displayDirection = direction === '卖' ? '卖' : '买';
-  
-  // 4. 构建文字叠加参数（需要根据您的底图精确调整坐标）
-  //    以下坐标是基于您之前950x1300尺寸的估算值，您可能需要微调
+  const profitColor = profitAmount >= 0 ? '35b97c' : 'cc3333'; // 正绿负红
+
+  // --- 3. 方向相关设置 ---
+  const isSell = direction === '卖';
+  const directionText = isSell ? '卖' : '买';
+  const directionColor = isSell ? 'cc3333' : '35b97c'; // 卖红买绿
+
+  // --- 4. 动态计算 USDT 的 X 坐标（基于盈利数字长度）---
+  const profitXStart = 40; // 盈利数字的起始 X
+  const profitCharWidth = 45; // 每个字符的估算宽度（85px 字体，含间距）
+  const profitStrWidth = displayProfit.length * profitCharWidth;
+  const usdtX = profitXStart + profitStrWidth + 20; // 增加 20px 间距
+  // 防止 USDT 超出图片右侧，加个上限（图片宽度 950，留点边距）
+  const maxUsdtX = 750; 
+  const finalUsdtX = Math.min(usdtX, maxUsdtX);
+
+  // --- 5. 构建文字图层数组（参数基于你调试好的坐标）---
   const textLayers = [
-    // 时间（右上角）- 可选，如果您想在图片上显示时间
-    // `l_text:Arial_33:${encodeURIComponent(new Date().toLocaleString('zh-CN'))},co_F0F0F0,g_north_east,x_420,y_145`,
-    
-    // 交易对（左上）
-    `l_text:Arial_47_bold:${encodeURIComponent(symbol.replace('.P', '') + ' 永续')},co_F0F0F0,g_north_west,x_50,y_395`,
-    
-    // 方向（买/卖）- 放在30x左侧
-    `l_text:Arial_35_bold:${encodeURIComponent(displayDirection)},co_${displayDirection === '卖' ? 'cc3333' : '35B97C'},g_north_west,x_53,y_475`,
-    
-    // 盈利金额（大字）
-    `l_text:Arial_85_bold:${encodeURIComponent(displayProfit)},co_${profitAmount >= 0 ? '35B97C' : 'cc3333'},g_north_west,x_40,y_585`,
-    
-    // USDT 字样
-    `l_text:Arial_50_bold:USDT,co_F0F0F0,g_north_west,x_280,y_585`,
-    
-    // 开仓价格
-    `l_text:Arial_35:${encodeURIComponent(entry)},co_F0F0F0,g_south_west,x_60,y_430`,
-    
-    // 最新价格
-    `l_text:Arial_35:${encodeURIComponent(price)},co_F0F0F0,g_south_east,x_505,y_430`
+    // 交易对 (g_north_west, x50, y400) - 使用粗体白字
+    `l_text:arial_47_bold:${encodeURIComponent(symbol.replace('.P', '') + ' 永续')},co_f0f0f0,g_north_west,x_50,y_400`,
+
+    // 方向 (g_north_west, x56, y480) - 动态颜色
+    `l_text:arial_35_bold:${encodeURIComponent(directionText)},co_${directionColor},g_north_west,x_56,y_480`,
+
+    // 盈利金额 (g_north_west, x40, y590) - 动态颜色，Open Sans 95
+    `l_text:open%20sans_95_bold:${encodeURIComponent(displayProfit)},co_${profitColor},g_north_west,x_40,y_590`,
+
+    // USDT (g_north_west, y590) - 动态 X 坐标
+    `l_text:arial_50_bold:USDT,co_f0f0f0,g_north_west,x_${finalUsdtX},y_590`,
+
+    // 开仓价格 (g_north_west, x60, y830) - 细体白字
+    `l_text:arial_35:${encodeURIComponent(entry)},co_f0f0f0,g_north_west,x_60,y_830`,
+
+    // 最新价格 (g_north_west, x505, y830) - 细体白字
+    `l_text:arial_36:${encodeURIComponent(price)},co_f0f0f0,g_north_west,x_505,y_830`
   ];
-  
-  // 5. 将所有文字层用斜杠连接，附加到底图上
-  const cloudinaryUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${textLayers.join('/')}/${BASE_IMAGE_ID}.png`;
-  
-  return cloudinaryUrl;
+
+  // --- 6. 将所有图层用正确的语法拼接 ---
+  // Cloudinary 的正确语法是：每个图层后跟 /fl_layer_apply,gravity,x,y
+  // 但 URL Generator 生成的是另一种风格，这里采用最兼容的手动拼接
+  let url = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/`;
+  // 添加所有文字图层
+  textLayers.forEach(layer => {
+    url += layer + '/fl_layer_apply/';
+  });
+  // 添加底图
+  url += BASE_IMAGE_ID + '.png';
+
+  // 7. 可选：添加时间戳防缓存（但 Cloudinary 本身有缓存机制）
+  // url += `?_t=${Date.now()}`;
+
+  return url;
 }
 
 // ---------- 精简版消息格式化（增强字段提取）----------

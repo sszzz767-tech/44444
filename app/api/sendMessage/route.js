@@ -155,7 +155,7 @@ function generateImageURL(params) {
 
   // --- 4. 动态计算 USDT 的 X 坐标 ---
   const profitXStart = 40;                // 盈利数字起始 X
-  const profitCharWidth = 55;              // 每个字符估算宽度（85px 字体）
+  const profitCharWidth = 50;              // 每个字符估算宽度（85px 字体）
   const profitStrWidth = displayProfit.length * profitCharWidth;
   const usdtX = profitXStart + profitStrWidth + 20; // +20 固定间距
   const maxUsdtX = 750;                     // 图片宽度 950，留右边距
